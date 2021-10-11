@@ -147,7 +147,7 @@ abstract class Api(
         val body = RequestBody.create(MediaType.parse("application/json; charset=UTF-8")!!, bytes)
 
         val requestBuilder = Request.Builder()
-            .url("${baseUrl.removeSuffix("/")}/${endpoint.endpointUrlPath}")
+            .url("${baseUrl.removeSuffix("/")}/${endpoint.endpointUrlPath.removePrefix("/")}")
             .post(body)
             .header("Accept-Language", acceptLanguage)
 
