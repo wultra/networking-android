@@ -14,22 +14,22 @@ package com.wultra.android.powerauth.networking
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.StatusResponse
 
-abstract class Endpoint<TRequestData: BaseRequest, TResponseData: StatusResponse>(val endpointUrlPath: String)
+abstract class Endpoint<TRequestData: BaseRequest, TResponseData: StatusResponse>(val endpointUrlPath: String, val isSigned: Boolean)
 
 /**
  * Basic endpoint - without any authorization header.
  */
 class EndpointBasic<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String):
-    Endpoint<TRequestData, TResponseData>(endpointUrlPath)
+    Endpoint<TRequestData, TResponseData>(endpointUrlPath, false)
 
 /**
  * Signed endpoint via PowerAuth signature.
  */
 class EndpointSigned<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String, val uriId: String):
-    Endpoint<TRequestData, TResponseData>(endpointUrlPath)
+    Endpoint<TRequestData, TResponseData>(endpointUrlPath, true)
 
 /**
  * Signed endpoint with token.
  */
 class EndpointSignedWithToken<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String, val tokenName: String):
-    Endpoint<TRequestData, TResponseData>(endpointUrlPath)
+    Endpoint<TRequestData, TResponseData>(endpointUrlPath, true)

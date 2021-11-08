@@ -135,12 +135,16 @@ abstract class Api(
         listener: IApiCallResponseListener<TResponseData>) {
 
         var bytes = bodyBytes
+        val headers = headers ?: HashMap<String, String>()
 
         if (encryptor != null) {
             val cryptogram = encryptor.encryptRequest(bodyBytes)
             if (cryptogram != null) {
                 val e2eePayload = E2EERequest(cryptogram.keyBase64, cryptogram.bodyBase64, cryptogram.macBase64, cryptogram.nonceBase64)
                 bytes = Gson().toJson(e2eePayload).encodeToByteArray()
+                if (!endpoint.isSigned) {
+                    headers[encryptor.metadata.httpHeaderKey] = encryptor.metadata.httpHeaderValue
+                }
             }
         }
 
@@ -151,7 +155,7 @@ abstract class Api(
             .post(body)
             .header("Accept-Language", acceptLanguage)
 
-        headers?.forEach { requestBuilder.header(it.key, it.value) }
+        headers.forEach { requestBuilder.header(it.key, it.value) }
 
         val call = okHttpClient.newCall(requestBuilder.build())
         call.enqueue(object : Callback {
