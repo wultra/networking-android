@@ -183,7 +183,7 @@ abstract class Api(
                     }
                 } catch (e: Throwable) {
                     // do not allow the app to crash when unexpected body is returned
-                    listener.onFailure(ApiError(ApiHttpException(response, null, e)))
+                    listener.onFailure(ApiError(ApiHttpException(response, errorResponse = null, cause = e)))
                 }
             }
         })
