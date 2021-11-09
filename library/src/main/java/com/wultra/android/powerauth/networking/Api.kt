@@ -37,7 +37,6 @@ import io.getlime.security.powerauth.sdk.PowerAuthToken
 import okhttp3.*
 import java.io.IOException
 import java.util.*
-import kotlin.reflect.typeOf
 
 interface IApiCallResponseListener<T> {
     fun onSuccess(result: T)
@@ -75,7 +74,7 @@ abstract class Api(
         val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
         val bodyBytes = GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
 
-        makeCall(bodyBytes, endpoint, headers, encryptor, listener)
+        makeCall(bodyBytes, endpoint, headers ?: hashMapOf(), encryptor, listener)
     }
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
@@ -92,8 +91,8 @@ abstract class Api(
 
         val authorizationHeader = powerAuthSDK.requestSignatureWithAuthentication(appContext, authentication, "POST", endpoint.uriId, bodyBytes)
 
-        val newHeaders = hashMapOf<String,String>(Pair(authorizationHeader.key, authorizationHeader.value))
-        headers?.let { newHeaders.putAll(it) }
+        val newHeaders = headers ?: hashMapOf()
+        newHeaders[authorizationHeader.key] = authorizationHeader.value
 
         makeCall(bodyBytes, endpoint, newHeaders, encryptor, listener)
     }
@@ -112,8 +111,8 @@ abstract class Api(
                 val requestGson = gsonBuilder.create()
                 val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
                 val bodyBytes = GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
-                val newHeaders = hashMapOf<String,String>(Pair(tokenHeader.key, tokenHeader.value))
-                headers?.let { newHeaders.putAll(it) }
+                val newHeaders = headers ?: hashMapOf()
+                newHeaders[tokenHeader.key] = tokenHeader.value
 
                 makeCall(bodyBytes, endpoint, newHeaders, encryptor, listener)
             }
@@ -130,12 +129,11 @@ abstract class Api(
     internal inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> makeCall(
         bodyBytes: ByteArray,
         endpoint: Endpoint<TRequestData, TResponseData>,
-        headers: HashMap<String, String>? = null,
+        headers: HashMap<String, String>,
         encryptor: EciesEncryptor? = null,
         listener: IApiCallResponseListener<TResponseData>) {
 
         var bytes = bodyBytes
-        val headers = headers ?: HashMap<String, String>()
 
         if (encryptor != null) {
             val cryptogram = encryptor.encryptRequest(bodyBytes)
