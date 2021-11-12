@@ -16,8 +16,10 @@ import okhttp3.Response
 /**
  * Exception for describing HTTP exceptions.
  */
-class ApiHttpException(response: Response, val errorResponse: ErrorResponse? = null):
-    RuntimeException(getErrorMessage(response)) {
+class ApiHttpException(response: Response,
+                       val errorResponse: ErrorResponse? = null,
+                       cause: Throwable? = null):
+    RuntimeException(getErrorMessage(response), cause) {
 
     companion object {
         private fun getErrorMessage(response: Response): String {

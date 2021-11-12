@@ -17,6 +17,8 @@ package com.wultra.android.powerauth.networking.error
 @Suppress("unused")
 enum class ApiErrorCode(val message: String) {
 
+    /* COMMON ERRORS */
+
     /** When unexpected error happened */
     ERROR_GENERIC("ERROR_GENERIC"),
 
@@ -29,8 +31,21 @@ enum class ApiErrorCode(val message: String) {
     /** Activation is not valid (it is different from configured activation) **/
     INVALID_ACTIVATION("INVALID_ACTIVATION"),
 
+    /** Error in case that PowerAuth authentication fails **/
+    ERR_AUTHENTICATION("ERR_AUTHENTICATION"),
+
+    /** Error during secure vault unlocking **/
+    ERR_SECURE_VAULT("ERR_SECURE_VAULT"),
+
+    /** Returned in case encryption or decryption fails **/
+    ERR_ENCRYPTION("ERR_ENCRYPTION"),
+
+    /* PUSH ERRORS */
+
     /** Error code for a situation when registration to push notification fails **/
     PUSH_REGISTRATION_FAILED("PUSH_REGISTRATION_FAILED"),
+
+    /* OPERATIONS ERRORS */
 
     /** Operation is already finished **/
     OPERATION_ALREADY_FINISHED("OPERATION_ALREADY_FINISHED"),
@@ -44,14 +59,24 @@ enum class ApiErrorCode(val message: String) {
     /** Operation is expired **/
     OPERATION_EXPIRED("OPERATION_EXPIRED"),
 
-    /** Error in case that PowerAuth authentication fails **/
-    ERR_AUTHENTICATION("ERR_AUTHENTICATION"),
+    /* ACTIVATION SPAWN ERRORS */
 
-    /** Error during secure vault unlocking **/
-    ERR_SECURE_VAULT("ERR_SECURE_VAULT"),
+    /** Unable to fetch activation code. */
+    ACTIVATION_CODE_FAILED("ACTIVATION_CODE_FAILED"),
 
-    /** Returned in case encryption or decryption fails **/
-    ERR_ENCRYPTION("ERR_ENCRYPTION");
+    /* IDENTITY ONBOARDING ERRORS */
+
+    /** Onboarding process failed or failed to start */
+    ONBOARDING_FAILED("ONBOARDING_FAILED"),
+
+    /** Document is invalid. */
+    INVALID_DOCUMENT("INVALID_DOCUMENT"),
+
+    /** Identity verification failed. */
+    IDENTITY_VERIFICATION_FAILED("IDENTITY_VERIFICATION_FAILED"),
+
+    /** Failed to resend onboarding OTP (probably requested too soon) */
+    ONBOARDING_OTP_FAILED("ONBOARDING_OTP_FAILED");
 
     companion object {
         private val map = mutableMapOf<String, ApiErrorCode>()

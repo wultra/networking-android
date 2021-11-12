@@ -16,4 +16,4 @@ import com.wultra.android.powerauth.networking.data.ObjectResponse
 /**
  * Model class for error response - the wrapper responseObject.
  */
-class ErrorResponse(responseObject: ErrorResponseObject, status: Status ): ObjectResponse<ErrorResponseObject>(responseObject, status)
+class ErrorResponse(responseObject: ErrorResponseObject, status: Status): ObjectResponse<ErrorResponseObject>(responseObject, status)
