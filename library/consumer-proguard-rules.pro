@@ -5,4 +5,5 @@
   @com.google.gson.annotations.SerializedName <fields>;
 }
 
--keepclassmembers enum com.wultra.android.activationspawn.api.*.** { *; }
+-keepclassmembers class com.wultra.android.powerauth.networking.data.** { *; }
+-keepclassmembers class com.wultra.android.powerauth.networking.error.** { *; }
