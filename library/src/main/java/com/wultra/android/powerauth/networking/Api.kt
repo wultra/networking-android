@@ -140,7 +140,7 @@ abstract class Api(
             if (cryptogram != null) {
                 val e2eePayload = E2EERequest(cryptogram.keyBase64, cryptogram.bodyBase64, cryptogram.macBase64, cryptogram.nonceBase64)
                 bytes = Gson().toJson(e2eePayload).encodeToByteArray()
-                if (!endpoint.isSigned) {
+                if (endpoint is EndpointBasic || endpoint is EndpointSignedWithToken) {
                     headers[encryptor.metadata.httpHeaderKey] = encryptor.metadata.httpHeaderValue
                 }
             }
