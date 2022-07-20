@@ -30,8 +30,7 @@ internal class TokenManager(
         if (localPowerAuthToken != null) {
             listener.onReceived(localPowerAuthToken)
         } else {
-            val authentication = PowerAuthAuthentication()
-            authentication.usePossession = true
+            val authentication = PowerAuthAuthentication.possession()
             try {
                 powerAuthTokenStore.requestAccessToken(appContext, tokenName, authentication, object : IGetTokenListener {
                     override fun onGetTokenSucceeded(token: PowerAuthToken) {

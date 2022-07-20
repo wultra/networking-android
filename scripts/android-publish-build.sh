@@ -34,6 +34,9 @@ function USAGE
     echo "    -s version | --snapshot version"
     echo "                      Set version to version-SNAPSHOT and exit"
     echo ""
+    echo "    -r version | --release version"
+    echo "                      Set version to 'version' and exit"
+    echo ""
     echo "    -ns | --no-sign"
     echo "                      Don't sign artifacts when publishing"
     echo "                      to local Maven cache"
@@ -50,40 +53,74 @@ function USAGE
 }
 
 # -----------------------------------------------------------------------------
-# MAKE_SNAPSHOT_VER sets version-SNAPSHOT to gradle.properties file
+# MAKE_VER sets version or version-SNAPSHOT to gradle.properties file
 # Parameters:
 #   $1   - version to set
+#   $2   - version suffix, for example "SNAPSHOT", or empty
 # -----------------------------------------------------------------------------
-function MAKE_SNAPSHOT_VER
+function MAKE_VER
 {
     local VER=$1
-    
+    local VER_SUFFIX=$2
+    if [ ! -z "$VER_SUFFIX" ]; then
+        VER_SUFFIX="-$VER_SUFFIX"
+    fi
+    local NEW_VER=${VER}${VER_SUFFIX}
+    local CUR_VER=$(LOAD_CURRENT_VERSION)
+    local PROP_PATH="${SRC_ROOT}/${GRADLE_PROP}"
+
     VALIDATE_AND_SET_VERSION_STRING "$VER"
-    VER=$VER-SNAPSHOT
+    
+    [[ "$CUR_VER" == "-1" ]] && FAILURE "Failed to load version from gradle.properties file."
     
     PUSH_DIR "${SRC_ROOT}"
     ####
-    LOG "Modifying version to $VER ..."
-    sed -e "s/%DEPLOY_VERSION%/$VER/g" "${TOP}/templates/gradle.properties" > "$SRC_ROOT/${GRADLE_PROP}" 
+    # patch version file 
+    sed -e "s/$CUR_VER/$NEW_VER/g" "${PROP_PATH}" > "${PROP_PATH}.new"
+    $MV "${PROP_PATH}.new" "${PROP_PATH}"
     git add ${GRADLE_PROP}
     ####
     POP_DIR
+    
+    LOG_LINE
+    LOG "Version changed to:"
+    PRINT_CURRENT_VERSION 'local'
+    LOG_LINE
 }
 
 # -----------------------------------------------------------------------------
-# LOAD_CURRENT_VERSION loads and prints version from gradle.properties file
+# LOAD_CURRENT_VERSION loads version from gradle.properties file and prints
+# it to stdout.
+# -----------------------------------------------------------------------------
+function LOAD_CURRENT_VERSION
+{
+    local PROP_PATH="$SRC_ROOT/${GRADLE_PROP}"
+    local V="-1"
+    if [ -f "$PROP_PATH" ]; then
+        local ver=$(GET_PROPERTY "$PROP_PATH" 'VERSION_NAME')
+        if [ ! -z "$ver" ]; then
+            V="${ver}"
+        fi
+    fi
+    echo $V
+}
+
+# -----------------------------------------------------------------------------
+# PRINT_CURRENT_VERSION loads and prints version from gradle.properties file
 # Parameters:
 #   $1   - target repository (local | central)
 # -----------------------------------------------------------------------------
-function LOAD_CURRENT_VERSION
+function PRINT_CURRENT_VERSION
 {
     local REPO=$1
     local PROP_PATH="$SRC_ROOT/${GRADLE_PROP}"
     
-    [[ ! -f "$PROP_PATH" ]] && FAILURE "gradle.properties file doesn't exist on expected path."
+    local VERSION_NAME=$(LOAD_CURRENT_VERSION)
+    local GROUP_ID=$(GET_PROPERTY "$PROP_PATH" 'GROUP_ID')
+    local ARTIFACT_ID=$(GET_PROPERTY "$PROP_PATH" 'ARTIFACT_ID')
     
-    source "$PROP_PATH"
-    
+    [[ "$VERSION_NAME" == "-1" ]] && FAILURE "Failed to load version from gradle.properties file."
+        
     LOG_LINE
     if [ $REPO == 'local' ]; then
         LOG "Going to publish library to local Maven cache"
@@ -102,12 +139,6 @@ function LOAD_CURRENT_VERSION
     else
         LOG " - Clean build : YES"
     fi
-        
-    LOG_LINE
-    
-    unset VERSION_NAME
-    unset GROUP_ID
-    unset ARTIFACT_ID
 }
 
 ###############################################################################
@@ -124,7 +155,11 @@ do
     opt="$1"
     case "$opt" in
         -s | --snapshot)
-            MAKE_SNAPSHOT_VER "$2"
+            MAKE_VER "$2" 'SNAPSHOT'
+            EXIT_SUCCESS
+            ;;
+        -r | --release)
+            MAKE_VER "$2" ""
             EXIT_SUCCESS
             ;;
         -nc | --no-clean)
@@ -190,7 +225,7 @@ else
     [[ $DO_REPO == 'central' ]] && FAILURE "Signing is required for publishing to Maven Central."
 fi
 
-LOAD_CURRENT_VERSION $DO_REPO
+PRINT_CURRENT_VERSION $DO_REPO
 
 PUSH_DIR "${SRC_ROOT}"
 ####
