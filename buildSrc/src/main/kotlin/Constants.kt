@@ -9,6 +9,27 @@
  * before the Municipal Court of Prague.
  */
 
+import org.gradle.api.JavaVersion
+
 object Constants {
-    const val kotlinVersion = "1.5.31"
+    object BuildScript {
+        // These have to be defined in buildSrc/gradle.properties
+        // It's the only way to make them available in buildSrc/build.gradle.kts
+        val androidPluginVersion: String by System.getProperties()
+        val kotlinVersion: String by System.getProperties()
+        val dokkaVersion: String by System.getProperties()
+    }
+
+    object Java {
+        val sourceCompatibility = JavaVersion.VERSION_11
+        val targetCompatibility = JavaVersion.VERSION_11
+        const val kotlinJvmTarget = "11"
+    }
+
+    object Android {
+        const val compileSdkVersion = 31
+        const val targetSdkVersion = 31
+        const val minSdkVersion = 21
+        const val buildToolsVersion = "33.0.0"
+    }
 }

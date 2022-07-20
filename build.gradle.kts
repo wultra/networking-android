@@ -20,9 +20,9 @@ buildscript {
         google()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:4.2.2")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${Constants.kotlinVersion}")
-        classpath("org.jetbrains.dokka:dokka-gradle-plugin:1.5.31")
+        classpath("com.android.tools.build:gradle:${Constants.BuildScript.androidPluginVersion}")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${Constants.BuildScript.kotlinVersion}")
+        classpath("org.jetbrains.dokka:dokka-gradle-plugin:${Constants.BuildScript.dokkaVersion}")
         // releasing
         classpath("com.github.dcendents:android-maven-gradle-plugin:2.1")
     }
