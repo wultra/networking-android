@@ -65,7 +65,7 @@ abstract class Api(
     @PublishedApi internal val powerAuthSDK: PowerAuthSDK,
     @PublishedApi internal val gsonBuilder: GsonBuilder,
     @PublishedApi internal val appContext: Context,
-    @PublishedApi internal val tokenProvider: IPowerAuthTokenProvider = TokenManager(appContext, powerAuthSDK.tokenStore),
+    tokenProvider: IPowerAuthTokenProvider? = null,
     @PublishedApi internal val userAgent: UserAgent = UserAgent.libraryDefault(appContext)) {
 
     /**
@@ -73,7 +73,9 @@ abstract class Api(
      */
     var acceptLanguage = "en"
 
-     // PUBLIC API
+    @PublishedApi internal val tokenProvider: IPowerAuthTokenProvider = tokenProvider ?: TokenManager(appContext, powerAuthSDK.tokenStore)
+
+    // PUBLIC API
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
         data: TRequestData,
