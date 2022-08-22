@@ -14,11 +14,13 @@
 package com.wultra.android.powerauth.networking
 
 import android.content.Context
+import android.os.Build
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.TypeAdapter
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import com.wultra.android.powerauth.BuildConfig
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.error.ApiError
@@ -29,6 +31,9 @@ import com.wultra.android.powerauth.networking.processing.GsonResponseBodyConver
 import com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenListener
 import com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenProvider
 import com.wultra.android.powerauth.networking.tokens.TokenManager
+import com.wultra.android.powerauth.networking.utils.AppUtils
+import com.wultra.android.powerauth.networking.utils.getCurrentLocale
+import com.wultra.android.powerauth.networking.utils.toBcp47LanguageTag
 import io.getlime.security.powerauth.core.EciesCryptogram
 import io.getlime.security.powerauth.core.EciesEncryptor
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
@@ -45,6 +50,14 @@ interface IApiCallResponseListener<T> {
 
 /**
  * Common API methods for making request via OkHttp and (de)serializing data via Gson.
+ *
+ * @param baseUrl Base url for all requests
+ * @param okHttpClient Configured Http Client
+ * @param powerAuthSDK Power Auth instance for request signing
+ * @param gsonBuilder Builder that will be used for request/response (de)serialization.
+ * @param tokenProvider Token provided for token signing.
+ * @param userAgent Default user agent for each request. Note that such value might be "overridden"
+ * on per-request basis. Default value is `libraryDefault`.
  */
 abstract class Api(
     @PublishedApi internal val baseUrl: String,
@@ -52,14 +65,13 @@ abstract class Api(
     @PublishedApi internal val powerAuthSDK: PowerAuthSDK,
     @PublishedApi internal val gsonBuilder: GsonBuilder,
     @PublishedApi internal val appContext: Context,
-    tokenProvider: IPowerAuthTokenProvider? = null) {
+    @PublishedApi internal val tokenProvider: IPowerAuthTokenProvider = TokenManager(appContext, powerAuthSDK.tokenStore),
+    @PublishedApi internal val userAgent: UserAgent = UserAgent.libraryDefault(appContext)) {
 
     /**
-     * Language sent in request header.
+     * Language sent in request header. Default value is "en".
      */
     var acceptLanguage = "en"
-
-    @PublishedApi internal val tokenProvider: IPowerAuthTokenProvider = tokenProvider ?: TokenManager(appContext, powerAuthSDK.tokenStore)
 
      // PUBLIC API
 
@@ -153,6 +165,8 @@ abstract class Api(
             .post(body)
             .header("Accept-Language", acceptLanguage)
 
+        userAgent.value?.let { requestBuilder.header("User-Agent", it) }
+
         headers.forEach { requestBuilder.header(it.key, it.value) }
 
         val call = okHttpClient.newCall(requestBuilder.build())
@@ -194,6 +208,23 @@ abstract class Api(
     @PublishedApi
     internal inline fun <reified T> getTypeAdapter(gson: Gson): TypeAdapter<T> {
         return gson.getAdapter(TypeToken.get(T::class.java))
+    }
+}
+
+class UserAgent internal constructor(@PublishedApi internal val value: String? = null) {
+    companion object {
+        fun libraryDefault(appContext: Context): UserAgent {
+            val appInfo = AppUtils.getMyPackageBasicInfo(appContext)
+            return UserAgent(
+                "PowerAuthNetworking/${BuildConfig.VERSION_NAME} " +
+                "(${Build.BRAND}; ${appContext.getCurrentLocale().toBcp47LanguageTag()}) " +
+                "${appInfo.packageName}/${appInfo.versionName}"
+            )
+        }
+
+        fun systemDefault() = UserAgent()
+
+        fun customValue(value: String) = UserAgent(value)
     }
 }
 
