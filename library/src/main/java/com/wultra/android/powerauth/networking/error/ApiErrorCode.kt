@@ -31,6 +31,9 @@ enum class ApiErrorCode(val message: String) {
     /** Activation is not valid (it is different from configured activation) **/
     INVALID_ACTIVATION("INVALID_ACTIVATION"),
 
+    /** Error during activation **/
+    ERR_ACTIVATION("ERR_ACTIVATION"),
+
     /** Error in case that PowerAuth authentication fails **/
     ERR_AUTHENTICATION("ERR_AUTHENTICATION"),
 
@@ -69,14 +72,46 @@ enum class ApiErrorCode(val message: String) {
     /** Onboarding process failed or failed to start */
     ONBOARDING_FAILED("ONBOARDING_FAILED"),
 
+    /** An onboarding process limit reached (e.g. too many reset attempts for identity verification or maximum error score exceeded). **/
+    ONBOARDING_PROCESS_LIMIT_REACHED("ONBOARDING_PROCESS_LIMIT_REACHED"),
+
+    /** Too many attempts to start an onboarding process for a user. **/
+    ONBOARDING_TOO_MANY_PROCESSES("TOO_MANY_ONBOARDING_PROCESSES"),
+
+    /** Failed to resend onboarding OTP (probably requested too soon) */
+    ONBOARDING_OTP_FAILED("ONBOARDING_OTP_FAILED"),
+
     /** Document is invalid. */
-    INVALID_DOCUMENT("INVALID_DOCUMENT"),
+    IDENTITY_INVALID_DOCUMENT("INVALID_DOCUMENT"),
+
+    /** Document submit failed */
+    IDENTITY_DOCUMENT_SUBMIT_FAILED("DOCUMENT_SUBMIT_FAILED"),
 
     /** Identity verification failed. */
     IDENTITY_VERIFICATION_FAILED("IDENTITY_VERIFICATION_FAILED"),
 
-    /** Failed to resend onboarding OTP (probably requested too soon) */
-    ONBOARDING_OTP_FAILED("ONBOARDING_OTP_FAILED");
+    /** Identity verification limit reached (e.g. exceeded number of upload attempts). */
+    IDENTITY_VERIFICATION_LIMIT_REACHED("IDENTITY_VERIFICATION_LIMIT_REACHED"),
+
+    /** Verification of documents failed */
+    IDENTITY_DOCUMENT_VERIFICATION_FAILED("DOCUMENT_VERIFICATION_FAILED"),
+
+    /** Presence check failed */
+    IDENTITY_PRESENCE_CHECK_FAILED("PRESENCE_CHECK_FAILED"),
+
+    /** Presence check is not enabled */
+    IDENTITY_PRESENCE_CHECK_NOT_ENABLED("PRESENCE_CHECK_NOT_ENABLED"),
+
+    /** Maximum limit of presence check attempts was exceeded. */
+    IDENTITY_PRESENCE_CHECK_LIMIT_REACHED("PRESENCE_CHECK_LIMIT_REACHED"),
+
+    /* OTHER */
+
+    /** Too many same requests */
+    TOO_MANY_REQUESTS("TOO_MANY_REQUESTS"),
+
+    /** Communication with remote system failed */
+    REMOTE_COMMUNICATION_ERROR("REMOTE_COMMUNICATION_ERROR");
 
     companion object {
         private val map = mutableMapOf<String, ApiErrorCode>()
