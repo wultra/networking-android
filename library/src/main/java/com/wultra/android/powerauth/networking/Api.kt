@@ -171,7 +171,8 @@ abstract class Api(
 
         headers.forEach { requestBuilder.header(it.key, it.value) }
 
-        val call = okHttpClient.newCall(requestBuilder.build())
+        val request = requestBuilder.build()
+        val call = okHttpClient.newCall(request)
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 listener.onFailure(ApiError(e))
@@ -183,7 +184,11 @@ abstract class Api(
 
                         val resData = if (encryptor != null) {
                             val envelope = Gson().fromJson(response.body()!!.string(), E2EEResponse::class.java)
-                            encryptor.decryptResponse(EciesCryptogram(envelope.encryptedData, envelope.mac))
+                            val decrypted = encryptor.decryptResponse(EciesCryptogram(envelope.encryptedData, envelope.mac))
+                            okHttpClient.interceptors().mapNotNull { it as? ECIESInterceptor }.forEach {
+                                it.encryptedResponseReceived(request.url().url(), decrypted)
+                            }
+                            decrypted
                         } else {
                             response.body()!!.bytes()
                         }
