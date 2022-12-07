@@ -23,7 +23,7 @@ class ApiErrorException(
     /**
      * Error code extracted from the response's error.
      */
-    val errorCode: ApiErrorCode?,
+    val errorCode: ApiErrorCode? = null,
     /**
      * The detailed message.
      */
@@ -41,4 +41,20 @@ class ApiErrorException(
      * @param apiError Instance of [ApiError].
      */
     constructor(apiError: ApiError) : this(apiError.error, apiError.e.message, apiError.e)
+
+    /**
+     * Construct exception from another exception. If exception is one from known exceptions,
+     * then the [errorCode] property is also initialized.
+     */
+    constructor(cause: Throwable) : this(ApiError(cause).error, cause.message, cause)
+
+    companion object {
+        /**
+         * Wrap any [Throwable] object into [ApiErrorException]. If throwable is already [ApiErrorException]
+         * then return the object as is.
+         */
+        fun wrap(t: Throwable): ApiErrorException {
+            return if (t is ApiErrorException) t else ApiErrorException(t)
+        }
+    }
 }
