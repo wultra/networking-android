@@ -45,6 +45,7 @@ import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import io.getlime.security.powerauth.sdk.PowerAuthSDK
 import io.getlime.security.powerauth.sdk.PowerAuthToken
 import okhttp3.*
+import okhttp3.OkHttpClient.Builder
 import java.io.IOException
 import java.util.*
 
@@ -87,13 +88,14 @@ abstract class Api(
         endpoint: EndpointBasic<TRequestData, TResponseData>,
         headers: HashMap<String, String>? = null,
         encryptor: EciesEncryptor? = null,
+        okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>) {
 
         val requestGson = gsonBuilder.create()
         val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
         val bodyBytes = GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
 
-        makeCall(bodyBytes, endpoint, headers ?: hashMapOf(), encryptor, listener)
+        makeCall(bodyBytes, endpoint, headers ?: hashMapOf(), encryptor, okHttpInterceptor, listener)
     }
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
@@ -102,6 +104,7 @@ abstract class Api(
         authentication: PowerAuthAuthentication,
         headers: HashMap<String, String>? = null,
         encryptor: EciesEncryptor? = null,
+        okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>) {
 
         val requestGson = gsonBuilder.create()
@@ -113,7 +116,7 @@ abstract class Api(
         val newHeaders = headers ?: hashMapOf()
         newHeaders[authorizationHeader.key] = authorizationHeader.value
 
-        makeCall(bodyBytes, endpoint, newHeaders, encryptor, listener)
+        makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
     }
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
@@ -121,6 +124,7 @@ abstract class Api(
         endpoint: EndpointSignedWithToken<TRequestData, TResponseData>,
         headers: HashMap<String, String>? = null,
         encryptor: EciesEncryptor? = null,
+        okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>) {
 
         tokenProvider.getTokenAsync(endpoint.tokenName, object : IPowerAuthTokenListener {
@@ -133,7 +137,7 @@ abstract class Api(
                 val newHeaders = headers ?: hashMapOf()
                 newHeaders[tokenHeader.key] = tokenHeader.value
 
-                makeCall(bodyBytes, endpoint, newHeaders, encryptor, listener)
+                makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
             }
 
             override fun onFailed(e: Throwable) {
@@ -150,6 +154,7 @@ abstract class Api(
         endpoint: Endpoint<TRequestData, TResponseData>,
         headers: HashMap<String, String>,
         encryptor: EciesEncryptor? = null,
+        okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>) {
 
         var bytes = bodyBytes
@@ -177,7 +182,14 @@ abstract class Api(
         headers.forEach { requestBuilder.header(it.key, it.value) }
 
         val request = requestBuilder.build()
-        val call = okHttpClient.newCall(request)
+        val client = if (okHttpInterceptor != null) {
+            val builder = okHttpClient.newBuilder()
+            okHttpInterceptor.intercept(builder)
+            builder.build()
+        } else {
+            okHttpClient
+        }
+        val call = client.newCall(request)
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 listener.onFailure(ApiError(e))
@@ -221,6 +233,10 @@ abstract class Api(
     internal inline fun <reified T> getTypeAdapter(gson: Gson): TypeAdapter<T> {
         return gson.getAdapter(TypeToken.get(T::class.java))
     }
+}
+
+interface OkHttpBuilderInterceptor {
+    fun intercept(builder: Builder)
 }
 
 class UserAgent internal constructor(@PublishedApi internal val value: String? = null) {
