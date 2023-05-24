@@ -255,8 +255,6 @@ class UserAgent internal constructor(@PublishedApi internal val value: String? =
             val osVer = Build.VERSION.RELEASE
             val model = Build.MODEL
             val network = connectionMonitor.status.value
-            val result = UserAgent("$product/$sdkVer ($lang; $network) $appId/$appVer ($maker; $os/$osVer; $model)")
-            println(result)
             return UserAgent("$product/$sdkVer ($lang; $network) $appId/$appVer ($maker; $os/$osVer; $model)")
         }
 
