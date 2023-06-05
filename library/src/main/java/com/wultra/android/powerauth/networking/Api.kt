@@ -39,7 +39,6 @@ import com.wultra.android.powerauth.networking.tokens.TokenManager
 import com.wultra.android.powerauth.networking.utils.AppUtils
 import com.wultra.android.powerauth.networking.utils.ConnectionMonitor
 import com.wultra.android.powerauth.networking.utils.getCurrentLocale
-import com.wultra.android.powerauth.networking.utils.toBcp47LanguageTag
 import io.getlime.security.powerauth.core.EciesCryptogram
 import io.getlime.security.powerauth.core.EciesEncryptor
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
@@ -243,7 +242,6 @@ interface OkHttpBuilderInterceptor {
 class UserAgent internal constructor(@PublishedApi internal val value: String? = null) {
     companion object {
         fun libraryDefault(appContext: Context): UserAgent {
-            val connectionMonitor = ConnectionMonitor(appContext)
             val appInfo = AppUtils.getMyPackageBasicInfo(appContext)
             val product = "PowerAuthNetworking"
             val sdkVer = BuildConfig.VERSION_NAME
@@ -254,7 +252,7 @@ class UserAgent internal constructor(@PublishedApi internal val value: String? =
             val os = "Android"
             val osVer = Build.VERSION.RELEASE
             val model = Build.MODEL
-            val network = connectionMonitor.status.value
+            val network = ConnectionMonitor.getConnectivityStatus(appContext)
             return UserAgent("$product/$sdkVer ($lang; $network) $appId/$appVer ($maker; $os/$osVer; $model)")
         }
 

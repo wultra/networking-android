@@ -21,6 +21,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.*
 import android.os.Build
+import androidx.annotation.RequiresApi
 import com.wultra.android.powerauth.networking.Logger
 
 class AppUtils {
@@ -38,7 +39,7 @@ class AppUtils {
     }
 }
 
-class ConnectionMonitor(context: Context) {
+object ConnectionMonitor {
 
     enum class Status(val value: String) {
         UNKNOWN("unknown"),
@@ -48,29 +49,16 @@ class ConnectionMonitor(context: Context) {
         WIRED("wired")
     }
 
-    var status: Status = Status.NO_CONNECTION
-        private set
+    private var status: Status = Status.NO_CONNECTION
 
-    init {
+    fun getConnectivityStatus(context: Context): String {
         try {
             val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                val networkRequest = NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build()
-                connectivityManager.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
-                    override fun onAvailable(network: Network) {
-                        status = getConnectionStatus(connectivityManager)
-                    }
-
-                    override fun onLost(network: Network) {
-                        status = Status.NO_CONNECTION
-                    }
-                })
-                // Initial connection status check
-                status = getConnectionStatus(connectivityManager)
+            status = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    getConnectionStatus(connectivityManager)
             } else {
-                // for older android
                 val activeNetworkInfo = connectivityManager.activeNetworkInfo
-                status = if (activeNetworkInfo != null && activeNetworkInfo.isConnected) {
+                if (activeNetworkInfo != null && activeNetworkInfo.isConnected) {
                     getOlderConnectionStatus(activeNetworkInfo)
                 } else {
                     Status.UNKNOWN
@@ -80,22 +68,20 @@ class ConnectionMonitor(context: Context) {
             status = Status.UNKNOWN
             Logger.d("Failed to create Connectivity Manager with Exception: $e")
         }
+        return status.value
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     private fun getConnectionStatus(connectivityManager: ConnectivityManager): Status {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val activeNetwork = connectivityManager.activeNetwork
-            val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+        val activeNetwork = connectivityManager.activeNetwork
+        val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
 
-            when {
-                networkCapabilities == null -> Status.NO_CONNECTION
-                networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> Status.WIFI
-                networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> Status.CELLULAR
-                networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> Status.WIRED
-                else -> Status.UNKNOWN
-            }
-        } else {
-            Status.UNKNOWN
+        return when {
+            networkCapabilities == null -> Status.NO_CONNECTION
+            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> Status.WIFI
+            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> Status.CELLULAR
+            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> Status.WIRED
+            else -> Status.UNKNOWN
         }
     }
 
