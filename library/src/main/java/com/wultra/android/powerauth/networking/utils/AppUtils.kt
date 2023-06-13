@@ -49,9 +49,8 @@ object ConnectionMonitor {
         WIRED("wired")
     }
 
-    private var status: Status = Status.NO_CONNECTION
-
     fun getConnectivityStatus(context: Context): String {
+        var status: Status
         try {
             val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             status = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
