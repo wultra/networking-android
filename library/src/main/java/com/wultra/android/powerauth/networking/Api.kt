@@ -37,8 +37,8 @@ import com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenListener
 import com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenProvider
 import com.wultra.android.powerauth.networking.tokens.TokenManager
 import com.wultra.android.powerauth.networking.utils.AppUtils
+import com.wultra.android.powerauth.networking.utils.ConnectionMonitor
 import com.wultra.android.powerauth.networking.utils.getCurrentLocale
-import com.wultra.android.powerauth.networking.utils.toBcp47LanguageTag
 import io.getlime.security.powerauth.core.EciesCryptogram
 import io.getlime.security.powerauth.core.EciesEncryptor
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
@@ -243,11 +243,17 @@ class UserAgent internal constructor(@PublishedApi internal val value: String? =
     companion object {
         fun libraryDefault(appContext: Context): UserAgent {
             val appInfo = AppUtils.getMyPackageBasicInfo(appContext)
-            return UserAgent(
-                "PowerAuthNetworking/${BuildConfig.VERSION_NAME} " +
-                "(${Build.BRAND}; ${appContext.getCurrentLocale().toBcp47LanguageTag()}) " +
-                "${appInfo.packageName}/${appInfo.versionName}"
-            )
+            val product = "PowerAuthNetworking"
+            val sdkVer = BuildConfig.VERSION_NAME
+            val appVer = appInfo.versionName
+            val appId = appInfo.packageName
+            val lang = appContext.getCurrentLocale().language // we use here only language to fit iOS implementation
+            val maker = Build.BRAND
+            val os = "Android"
+            val osVer = Build.VERSION.RELEASE
+            val model = Build.MODEL
+            val network = ConnectionMonitor.getConnectivityStatus(appContext)
+            return UserAgent("$product/$sdkVer ($lang; $network) $appId/$appVer ($maker; $os/$osVer; $model)")
         }
 
         fun systemDefault() = UserAgent()
