@@ -162,7 +162,13 @@ abstract class Api(
         if (encryptor != null) {
             val cryptogram = encryptor.encryptRequest(bodyBytes)
             if (cryptogram != null) {
-                val e2eePayload = E2EERequest(cryptogram.keyBase64, cryptogram.bodyBase64, cryptogram.macBase64, cryptogram.nonceBase64)
+                val e2eePayload = E2EERequest(
+                    cryptogram.keyBase64,
+                    cryptogram.bodyBase64,
+                    cryptogram.macBase64,
+                    cryptogram.nonceBase64,
+                    cryptogram.timestamp
+                )
                 bytes = Gson().toJson(e2eePayload).encodeToByteArray()
                 if (endpoint is EndpointBasic || endpoint is EndpointSignedWithToken) {
                     headers[encryptor.metadata.httpHeaderKey] = encryptor.metadata.httpHeaderValue
@@ -201,7 +207,15 @@ abstract class Api(
 
                         val resData = if (encryptor != null) {
                             val envelope = Gson().fromJson(response.body()!!.string(), E2EEResponse::class.java)
-                            val decrypted = encryptor.decryptResponse(EciesCryptogram(envelope.encryptedData, envelope.mac))
+                            val decrypted = encryptor.decryptResponse(
+                                EciesCryptogram(
+                                    envelope.encryptedData,
+                                    envelope.mac,
+                                    null,
+                                    envelope.nonce,
+                                    envelope.timestamp ?: 0
+                                )
+                            )
                             okHttpClient.interceptors().mapNotNull { it as? ECIESInterceptor }.forEach {
                                 it.encryptedResponseReceived(request.url().url(), decrypted)
                             }
@@ -267,11 +281,14 @@ class UserAgent internal constructor(@PublishedApi internal val value: String? =
     @SerializedName("ephemeralPublicKey") val ephemeralPublicKey: String?,
     @SerializedName("encryptedData") val encryptedData: String?,
     @SerializedName("mac") val mac: String?,
-    @SerializedName("nonce") val nonce: String?
+    @SerializedName("nonce") val nonce: String?,
+    @SerializedName("timestamp") val timestamp: Long?
     )
 
 /** Envelope for E2EE responses. */
 @PublishedApi internal class E2EEResponse(
     @SerializedName("encryptedData") val encryptedData: String?,
-    @SerializedName("mac") val mac: String?
+    @SerializedName("mac") val mac: String?,
+    @SerializedName("nonce") val nonce: String?,
+    @SerializedName("timestamp") val timestamp: Long?
     )
