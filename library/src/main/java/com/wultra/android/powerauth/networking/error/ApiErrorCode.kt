@@ -67,6 +67,9 @@ enum class ApiErrorCode(val message: String) {
     /** Operation is expired **/
     OPERATION_EXPIRED("OPERATION_EXPIRED"),
 
+    /** Operation authorization failed **/
+    OPERATION_FAILED("OPERATION_FAILED"),
+
     /* ACTIVATION SPAWN ERRORS */
 
     /** Unable to fetch activation code. */
