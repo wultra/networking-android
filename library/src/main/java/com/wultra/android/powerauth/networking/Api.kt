@@ -41,6 +41,7 @@ import com.wultra.android.powerauth.networking.utils.ConnectionMonitor
 import com.wultra.android.powerauth.networking.utils.getCurrentLocale
 import io.getlime.security.powerauth.core.EciesCryptogram
 import io.getlime.security.powerauth.core.EciesEncryptor
+import io.getlime.security.powerauth.networking.response.ITimeSynchronizationListener
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import io.getlime.security.powerauth.sdk.PowerAuthSDK
 import io.getlime.security.powerauth.sdk.PowerAuthToken
@@ -91,11 +92,13 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>) {
 
-        val requestGson = gsonBuilder.create()
-        val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
-        val bodyBytes = GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
-
-        makeCall(bodyBytes, endpoint, headers ?: hashMapOf(), encryptor, okHttpInterceptor, listener)
+        synchronizeTime {
+            it.onSuccess {
+                makeCall(getBodyBytes(data), endpoint, headers ?: hashMapOf(), encryptor, okHttpInterceptor, listener)
+            }.onFailure {  e ->
+                listener.onFailure(ApiError(e))
+            }
+        }
     }
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
@@ -107,16 +110,27 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>) {
 
-        val requestGson = gsonBuilder.create()
-        val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
-        val bodyBytes = GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
+        synchronizeTime {
+            it.onSuccess {
 
-        val authorizationHeader = powerAuthSDK.requestSignatureWithAuthentication(appContext, authentication, "POST", endpoint.uriId, bodyBytes)
+                val bodyBytes = getBodyBytes(data)
 
-        val newHeaders = headers ?: hashMapOf()
-        newHeaders[authorizationHeader.key] = authorizationHeader.value
+                val authorizationHeader = powerAuthSDK.requestSignatureWithAuthentication(
+                    appContext,
+                    authentication,
+                    "POST",
+                    endpoint.uriId,
+                    bodyBytes
+                )
 
-        makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
+                val newHeaders = headers ?: hashMapOf()
+                newHeaders[authorizationHeader.key] = authorizationHeader.value
+
+                makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
+            }.onFailure {  e ->
+                listener.onFailure(ApiError(e))
+            }
+        }
     }
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
@@ -127,26 +141,58 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>) {
 
-        tokenProvider.getTokenAsync(endpoint.tokenName, object : IPowerAuthTokenListener {
-            override fun onReceived(token: PowerAuthToken) {
+        synchronizeTime {
+            it.onSuccess {
+                tokenProvider.getTokenAsync(
+                    endpoint.tokenName,
+                    object : IPowerAuthTokenListener {
+                        override fun onReceived(token: PowerAuthToken) {
 
-                val tokenHeader = token.generateHeader()
-                val requestGson = gsonBuilder.create()
-                val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
-                val bodyBytes = GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
-                val newHeaders = headers ?: hashMapOf()
-                newHeaders[tokenHeader.key] = tokenHeader.value
+                            val tokenHeader = token.generateHeader()
+                            val bodyBytes = getBodyBytes(data)
+                            val newHeaders = headers ?: hashMapOf()
+                            newHeaders[tokenHeader.key] = tokenHeader.value
 
-                makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
-            }
+                            makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
+                        }
 
-            override fun onFailed(e: Throwable) {
+                        override fun onFailed(e: Throwable) {
+                            listener.onFailure(ApiError(e))
+                        }
+                    }
+                )
+            }.onFailure {  e ->
                 listener.onFailure(ApiError(e))
             }
-        })
+        }
     }
 
     // PRIVATE API
+
+    @PublishedApi
+    internal inline fun <reified TRequestData: BaseRequest> getBodyBytes(data: TRequestData): ByteArray {
+        val requestGson = gsonBuilder.create()
+        val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
+        return GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
+    }
+
+    @PublishedApi
+    internal fun synchronizeTime(completion: (Result<Unit>) -> Unit) {
+        val ts = powerAuthSDK.timeSynchronizationService
+        if (ts.isTimeSynchronized) {
+            completion(Result.success(Unit))
+        } else {
+            ts.synchronizeTime(object: ITimeSynchronizationListener {
+                override fun onTimeSynchronizationSucceeded() {
+                    completion(Result.success(Unit))
+                }
+
+                override fun onTimeSynchronizationFailed(t: Throwable) {
+                    completion(Result.failure(t))
+                }
+            })
+        }
+    }
 
     @PublishedApi
     internal inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> makeCall(
