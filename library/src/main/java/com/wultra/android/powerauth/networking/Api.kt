@@ -41,6 +41,7 @@ import com.wultra.android.powerauth.networking.utils.ConnectionMonitor
 import com.wultra.android.powerauth.networking.utils.getCurrentLocale
 import io.getlime.security.powerauth.core.EciesCryptogram
 import io.getlime.security.powerauth.core.EciesEncryptor
+import io.getlime.security.powerauth.networking.response.ITimeSynchronizationListener
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import io.getlime.security.powerauth.sdk.PowerAuthSDK
 import io.getlime.security.powerauth.sdk.PowerAuthToken
@@ -91,11 +92,13 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>) {
 
-        val requestGson = gsonBuilder.create()
-        val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
-        val bodyBytes = GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
-
-        makeCall(bodyBytes, endpoint, headers ?: hashMapOf(), encryptor, okHttpInterceptor, listener)
+        synchronizeTime {
+            it.onSuccess {
+                makeCall(getBodyBytes(data), endpoint, headers ?: hashMapOf(), encryptor, okHttpInterceptor, listener)
+            }.onFailure {  e ->
+                listener.onFailure(ApiError(e))
+            }
+        }
     }
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
@@ -107,16 +110,27 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>) {
 
-        val requestGson = gsonBuilder.create()
-        val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
-        val bodyBytes = GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
+        synchronizeTime {
+            it.onSuccess {
 
-        val authorizationHeader = powerAuthSDK.requestSignatureWithAuthentication(appContext, authentication, "POST", endpoint.uriId, bodyBytes)
+                val bodyBytes = getBodyBytes(data)
 
-        val newHeaders = headers ?: hashMapOf()
-        newHeaders[authorizationHeader.key] = authorizationHeader.value
+                val authorizationHeader = powerAuthSDK.requestSignatureWithAuthentication(
+                    appContext,
+                    authentication,
+                    "POST",
+                    endpoint.uriId,
+                    bodyBytes
+                )
 
-        makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
+                val newHeaders = headers ?: hashMapOf()
+                newHeaders[authorizationHeader.key] = authorizationHeader.value
+
+                makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
+            }.onFailure {  e ->
+                listener.onFailure(ApiError(e))
+            }
+        }
     }
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
@@ -127,26 +141,58 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>) {
 
-        tokenProvider.getTokenAsync(endpoint.tokenName, object : IPowerAuthTokenListener {
-            override fun onReceived(token: PowerAuthToken) {
+        synchronizeTime {
+            it.onSuccess {
+                tokenProvider.getTokenAsync(
+                    endpoint.tokenName,
+                    object : IPowerAuthTokenListener {
+                        override fun onReceived(token: PowerAuthToken) {
 
-                val tokenHeader = token.generateHeader()
-                val requestGson = gsonBuilder.create()
-                val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
-                val bodyBytes = GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
-                val newHeaders = headers ?: hashMapOf()
-                newHeaders[tokenHeader.key] = tokenHeader.value
+                            val tokenHeader = token.generateHeader()
+                            val bodyBytes = getBodyBytes(data)
+                            val newHeaders = headers ?: hashMapOf()
+                            newHeaders[tokenHeader.key] = tokenHeader.value
 
-                makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
-            }
+                            makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
+                        }
 
-            override fun onFailed(e: Throwable) {
+                        override fun onFailed(e: Throwable) {
+                            listener.onFailure(ApiError(e))
+                        }
+                    }
+                )
+            }.onFailure {  e ->
                 listener.onFailure(ApiError(e))
             }
-        })
+        }
     }
 
     // PRIVATE API
+
+    @PublishedApi
+    internal inline fun <reified TRequestData: BaseRequest> getBodyBytes(data: TRequestData): ByteArray {
+        val requestGson = gsonBuilder.create()
+        val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
+        return GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
+    }
+
+    @PublishedApi
+    internal fun synchronizeTime(completion: (Result<Unit>) -> Unit) {
+        val ts = powerAuthSDK.timeSynchronizationService
+        if (ts.isTimeSynchronized) {
+            completion(Result.success(Unit))
+        } else {
+            ts.synchronizeTime(object: ITimeSynchronizationListener {
+                override fun onTimeSynchronizationSucceeded() {
+                    completion(Result.success(Unit))
+                }
+
+                override fun onTimeSynchronizationFailed(t: Throwable) {
+                    completion(Result.failure(t))
+                }
+            })
+        }
+    }
 
     @PublishedApi
     internal inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> makeCall(
@@ -162,7 +208,13 @@ abstract class Api(
         if (encryptor != null) {
             val cryptogram = encryptor.encryptRequest(bodyBytes)
             if (cryptogram != null) {
-                val e2eePayload = E2EERequest(cryptogram.keyBase64, cryptogram.bodyBase64, cryptogram.macBase64, cryptogram.nonceBase64)
+                val e2eePayload = E2EERequest(
+                    cryptogram.keyBase64,
+                    cryptogram.bodyBase64,
+                    cryptogram.macBase64,
+                    cryptogram.nonceBase64,
+                    cryptogram.timestamp
+                )
                 bytes = Gson().toJson(e2eePayload).encodeToByteArray()
                 if (endpoint is EndpointBasic || endpoint is EndpointSignedWithToken) {
                     headers[encryptor.metadata.httpHeaderKey] = encryptor.metadata.httpHeaderValue
@@ -201,7 +253,15 @@ abstract class Api(
 
                         val resData = if (encryptor != null) {
                             val envelope = Gson().fromJson(response.body()!!.string(), E2EEResponse::class.java)
-                            val decrypted = encryptor.decryptResponse(EciesCryptogram(envelope.encryptedData, envelope.mac))
+                            val decrypted = encryptor.decryptResponse(
+                                EciesCryptogram(
+                                    envelope.encryptedData,
+                                    envelope.mac,
+                                    null,
+                                    envelope.nonce,
+                                    envelope.timestamp ?: 0
+                                )
+                            )
                             okHttpClient.interceptors().mapNotNull { it as? ECIESInterceptor }.forEach {
                                 it.encryptedResponseReceived(request.url().url(), decrypted)
                             }
@@ -267,11 +327,14 @@ class UserAgent internal constructor(@PublishedApi internal val value: String? =
     @SerializedName("ephemeralPublicKey") val ephemeralPublicKey: String?,
     @SerializedName("encryptedData") val encryptedData: String?,
     @SerializedName("mac") val mac: String?,
-    @SerializedName("nonce") val nonce: String?
+    @SerializedName("nonce") val nonce: String?,
+    @SerializedName("timestamp") val timestamp: Long?
     )
 
 /** Envelope for E2EE responses. */
 @PublishedApi internal class E2EEResponse(
     @SerializedName("encryptedData") val encryptedData: String?,
-    @SerializedName("mac") val mac: String?
+    @SerializedName("mac") val mac: String?,
+    @SerializedName("nonce") val nonce: String?,
+    @SerializedName("timestamp") val timestamp: Long?
     )
