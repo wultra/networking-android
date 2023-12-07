@@ -27,6 +27,7 @@ android {
 
     defaultConfig {
         minSdk = Constants.Android.minSdkVersion
+        @Suppress("DEPRECATION")
         targetSdk = Constants.Android.targetSdkVersion
 
         // since Android Gradle Plugin 4.1.0
@@ -53,7 +54,7 @@ android {
 
 dependencies {
     // Bundled
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:${Constants.BuildScript.kotlinVersion}")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:${Constants.BuildScript.kotlinVersion}")
     implementation("androidx.annotation:annotation:1.7.0")
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.jakewharton.threetenabp:threetenabp:1.1.1")
