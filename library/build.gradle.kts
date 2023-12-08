@@ -21,6 +21,7 @@ plugins {
 }
 
 android {
+    namespace = "com.wultra.android.powerauth"
     compileSdk = Constants.Android.compileSdkVersion
     buildToolsVersion = Constants.Android.buildToolsVersion
 

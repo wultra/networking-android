@@ -14,7 +14,6 @@
   ~ and limitations under the License.
   -->
 
-<manifest package="com.wultra.android.powerauth"
-    xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 </manifest>
