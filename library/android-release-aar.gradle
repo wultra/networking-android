@@ -64,9 +64,10 @@ task androidSourcesJar(type: Jar) {
     from android.sourceSets.main.java.srcDirs
 }
 
-task androidJavadocsJar(type: Jar, dependsOn: androidJavadocs) {
+task androidJavadocsJar(type: Jar, dependsOn: [androidJavadocs, dokkaJavadoc]) {
     archiveClassifier.set('javadoc')
     from androidJavadocs.destinationDir
+    from(dokkaJavadoc.outputDirectory)
 }
 
 artifacts {
