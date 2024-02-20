@@ -19,6 +19,7 @@ We use this SDK in our other open-source projects that you can take inspiration 
 - [Digital Onboarding SDK](https://github.com/wultra/digital-onboarding-android/blob/develop/library/src/main/java/com/wultra/android/digitalonboarding/networking/CustomerOnboardingApi.kt#L38)  
 - [Mobile Token SDK](https://github.com/wultra/mtoken-sdk-android/blob/develop/library/src/main/java/com/wultra/android/mtokensdk/api/operation/OperationApi.kt)
 
+<!-- begin remove -->
 ## Documentation Content
 - [SDK Integration](#sdk-integration)
 - [Open Source Code](#open-source-code)
@@ -28,6 +29,7 @@ We use this SDK in our other open-source projects that you can take inspiration 
 - [Error Handling](#error-handling)
 - [Language Configuration](#language-configuration)
 - [Logging](#logging)
+<!-- end -->
 
 ## SDK Integration
 
