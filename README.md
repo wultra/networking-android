@@ -227,6 +227,8 @@ Each `ApiError ` has an optional `error` property for why the error was created.
 | `POWERAUTH_AUTH_FAIL` | General authentication failure (wrong password, wrong activation state, etc...) |
 | `INVALID_REQUEST` | Invalid request sent - missing request object in the request |
 | `INVALID_ACTIVATION` | Activation is not valid (it is different from configured activation) |
+| `INVALID_APPLICATION` | Invalid application identifier is attempted for operation manipulation. |
+| `INVALID_OPERATION` | Invalid operation identifier is attempted for operation manipulation. |
 | `ERR_ACTIVATION` | Error during activation |
 | `ERR_AUTHENTICATION` | Error in case that PowerAuth authentication fails |
 | `ERR_SECURE_VAULT` | Error during secure vault unlocking |
