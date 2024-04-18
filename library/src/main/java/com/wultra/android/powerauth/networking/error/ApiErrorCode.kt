@@ -36,6 +36,12 @@ enum class ApiErrorCode(val message: String) {
     /** Activation is not valid (it is different from configured activation) **/
     INVALID_ACTIVATION("INVALID_ACTIVATION"),
 
+    /** Invalid application identifier is attempted for operation manipulation. **/
+    INVALID_APPLICATION("INVALID_APPLICATION"),
+
+    /** Invalid operation identifier is attempted for operation manipulation. **/
+    INVALID_OPERATION("INVALID_OPERATION"),
+
     /** Error during activation **/
     ERR_ACTIVATION("ERR_ACTIVATION"),
 
