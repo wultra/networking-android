@@ -18,7 +18,7 @@ package com.wultra.android.powerauth.networking.processing
 
 import com.google.gson.Gson
 import com.google.gson.TypeAdapter
-import com.wultra.android.powerauth.networking.Logger
+import com.wultra.android.powerauth.networking.log.WPNLogger
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStreamWriter
@@ -42,7 +42,7 @@ internal class GsonRequestBodyBytes<T>(private val gson: Gson, private val adapt
             }
             return outputStream.toByteArray()
         } catch (t: Throwable) {
-            Logger.e("Failed to process request: $t")
+            WPNLogger.e("Failed to process request: $t")
             throw t
         }
     }

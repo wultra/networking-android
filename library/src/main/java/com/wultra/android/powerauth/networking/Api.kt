@@ -31,6 +31,7 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.error.ApiError
 import com.wultra.android.powerauth.networking.error.ApiHttpException
 import com.wultra.android.powerauth.networking.error.ErrorResponse
+import com.wultra.android.powerauth.networking.log.WPNLogger
 import com.wultra.android.powerauth.networking.processing.GsonRequestBodyBytes
 import com.wultra.android.powerauth.networking.processing.GsonResponseBodyConverter
 import com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenListener
@@ -86,7 +87,7 @@ abstract class Api(
 
     init {
         val builder = okHttpClient.newBuilder()
-        Logger.configure(builder)
+        WPNLogger.configure(builder)
         this.okHttpClient = builder.build()
     }
 
@@ -190,14 +191,14 @@ abstract class Api(
         if (ts.isTimeSynchronized) {
             completion(Result.success(Unit))
         } else {
-            Logger.i("Time is not synchronized, requesting synchronization first.")
+            WPNLogger.i("Time is not synchronized, requesting synchronization first.")
             ts.synchronizeTime(object: ITimeSynchronizationListener {
                 override fun onTimeSynchronizationSucceeded() {
                     completion(Result.success(Unit))
                 }
 
                 override fun onTimeSynchronizationFailed(t: Throwable) {
-                    Logger.e("Time failed to synchronize, stopping whole request: $t")
+                    WPNLogger.e("Time failed to synchronize, stopping whole request: $t")
                     completion(Result.failure(t))
                 }
             })

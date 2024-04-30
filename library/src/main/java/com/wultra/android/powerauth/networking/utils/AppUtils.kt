@@ -22,7 +22,7 @@ import android.content.pm.PackageManager
 import android.net.*
 import android.os.Build
 import androidx.annotation.RequiresApi
-import com.wultra.android.powerauth.networking.Logger
+import com.wultra.android.powerauth.networking.log.WPNLogger
 
 class AppUtils {
     companion object {
@@ -65,7 +65,7 @@ object ConnectionMonitor {
             }
         } catch (e: Throwable) {
             status = Status.UNKNOWN
-            Logger.d("Failed to create Connectivity Manager with Exception: $e")
+            WPNLogger.d("Failed to create Connectivity Manager with Exception: $e")
         }
         return status.value
     }

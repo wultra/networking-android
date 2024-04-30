@@ -20,7 +20,7 @@ import com.google.gson.Gson
 import com.google.gson.JsonIOException
 import com.google.gson.TypeAdapter
 import com.google.gson.stream.JsonToken
-import com.wultra.android.powerauth.networking.Logger
+import com.wultra.android.powerauth.networking.log.WPNLogger
 import okhttp3.ResponseBody
 import java.io.IOException
 import java.io.Reader
@@ -55,7 +55,7 @@ internal class GsonResponseBodyConverter<T>(private val gson: Gson, private val 
                 return result
             }
         } catch (t: Throwable) {
-            Logger.e("Failed to process response: $t")
+            WPNLogger.e("Failed to process response: $t")
             throw t
         }
     }
