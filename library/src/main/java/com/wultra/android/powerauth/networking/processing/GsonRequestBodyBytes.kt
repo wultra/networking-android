@@ -42,7 +42,7 @@ internal class GsonRequestBodyBytes<T>(private val gson: Gson, private val adapt
             }
             return outputStream.toByteArray()
         } catch (t: Throwable) {
-            Logger.e("Failed to process request", t)
+            Logger.e("Failed to process request: $t")
             throw t
         }
     }

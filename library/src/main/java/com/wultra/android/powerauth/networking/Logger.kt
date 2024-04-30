@@ -18,15 +18,17 @@ package com.wultra.android.powerauth.networking
 
 import android.util.Log
 import okhttp3.Headers
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import okio.Buffer
 import java.lang.StringBuilder
+import java.net.URL
 
 /**
  * Logger provides simple logging facility.
  *
- * Logs are written with "WMT" tag to standard [android.util.Log] logger.
+ * Logs are written with "WPN" tag to standard [android.util.Log] logger.
  */
 class Logger {
 
@@ -37,6 +39,8 @@ class Logger {
         ERROR,
         /** Errors and warnings will be printed into the log. */
         WARNING,
+        /** Info logs, errors and warnings will be printed into the log. */
+        INFO,
         /** All messages will be printed into the log. */
         DEBUG
     }
@@ -47,95 +51,138 @@ class Logger {
         /** Current verbose level. */
         var verboseLevel = VerboseLevel.WARNING
 
-        private val tag = "WMT"
+        /** Listener that can tap into the log stream and process it on it's own. */
+        var logListener: WPNLogListener? = null
+
+        private val tag = "WPN"
+
+        private fun log(valueFn: () -> String, allowedLevel: VerboseLevel, logFn: (String?, String) -> Unit, listenerFn: ((String) -> Unit)?) {
+            val shouldProcess = verboseLevel.ordinal >= allowedLevel.ordinal
+            val log = if (shouldProcess || logListener?.followVerboseLevel == false) valueFn() else return
+            if (shouldProcess) {
+                logFn(tag, log)
+            }
+            listenerFn?.invoke(log)
+        }
 
         internal fun d(message: String) {
-            if (verboseLevel.ordinal >= VerboseLevel.DEBUG.ordinal) {
-                Log.d(tag, message)
-            }
+            d { message }
         }
 
         internal fun d(fn: () -> String) {
-            if (verboseLevel.ordinal >= VerboseLevel.DEBUG.ordinal) {
-                Log.d(tag, fn())
-            }
+            log(fn, VerboseLevel.DEBUG, Log::d, logListener?.let { it::debug })
         }
 
         internal fun w(message: String) {
-            if (verboseLevel.ordinal >= VerboseLevel.WARNING.ordinal) {
-                Log.w(tag, message)
-            }
+            w { message }
         }
 
         internal fun w(fn: () -> String) {
-            if (verboseLevel.ordinal >= VerboseLevel.WARNING.ordinal) {
-                Log.w(tag, fn())
-            }
+            log(fn, VerboseLevel.WARNING, Log::w, logListener?.let { it::warning })
         }
 
-        internal fun e(message: String, t: Throwable? = null) {
-            if (verboseLevel.ordinal >= VerboseLevel.ERROR.ordinal) {
-                Log.e(tag, message, t)
-            }
+        internal fun i(message: String) {
+            i { message }
+        }
+
+        internal fun i(fn: () -> String) {
+            log(fn, VerboseLevel.INFO, Log::i, logListener?.let { it::info })
+        }
+
+        internal fun e(message: String) {
+            e { message }
         }
 
         internal fun e(fn: () -> String) {
-            if (verboseLevel.ordinal >= VerboseLevel.ERROR.ordinal) {
-                Log.e(tag, fn())
-            }
+            log(fn, VerboseLevel.ERROR, Log::e, logListener?.let { it::error })
         }
 
         internal fun configure(builder: OkHttpClient.Builder) {
-            builder.addInterceptor { chain ->
-                val request = chain.request()
-                d {
-                    var body = ""
-                    try {
-                        val buffer = Buffer()
-                        request.newBuilder().build().body()?.writeTo(buffer)
-                        body = buffer.readUtf8()
-                    } catch (e: Throwable) {
-                        e("Failed to parse request body")
+            builder.addInterceptor(
+                object: ECIESInterceptor {
+                    override fun encryptedResponseReceived(url: URL, decrypted: ByteArray) {
+                        d {
+                            "- Decrypted response ($url) - ${decrypted.decodeToString()}"
+                        }
                     }
 
-                    "\n--- WMT REQUEST ---" +
-                    "\n- URL: ${request.method()} - ${request.url()}" +
-                    "\n- Headers: ${request.headers().forLog()}" +
-                    "\n- Body: $body"
-                }
+                    override fun intercept(chain: Interceptor.Chain): Response {
 
+                        val request = chain.request()
 
-                val response: Response
+                        i {
+                            "\n<--- WPN REQUEST ---" +
+                                "\n- URL: ${request.method()} - ${request.url()}" +
+                                "\n- Headers: ${request.headers().forLog()}"
+                        }
 
-                try {
-                    response = chain.proceed(request)
-                } catch (e: Throwable) {
-                    d {
-                        "\n--- WMT REQUEST FAILED ---" +
-                        "\n- URL: ${request.method()} - ${request.url()}" +
-                        "\n- Error: $e"
+                        try {
+                            d {
+                                val buffer = Buffer()
+                                request.newBuilder().build().body()?.writeTo(buffer)
+                                "- Body: $${buffer.readUtf8()}"
+                            }
+                        } catch (e: Throwable) {
+                            e("- Failed to parse request body: ${e.message}")
+                        }
+
+                        val response: Response
+
+                        try {
+                            response = chain.proceed(request)
+                        } catch (e: Throwable) {
+                            e {
+                                "\n--- WPN REQUEST FAILED --->" +
+                                    "\n- URL: ${request.method()} - ${request.url()}" +
+                                    "\n- Error: $e"
+                            }
+                            throw e
+                        }
+
+                        i {
+                            "\n--- WPN RESPONSE --->" +
+                                "\n- URL: ${response.request().method()} - ${
+                                    response.request().url()
+                                }" +
+                                "\n- Status code: ${response.code()}" +
+                                "\n- Headers: ${response.headers().forLog()}"
+                        }
+
+                        try {
+                            d {
+                                "Body: ${
+                                    response.peekBody(10_000).string()
+                                }" // allow max 10 KB of text
+                            }
+                        } catch (e: Throwable) {
+                            e("- Failed to parse response body: ${e.message}")
+                        }
+
+                        return response
                     }
-                    throw e
                 }
-
-                d {
-                    "\n--- WMT RESPONSE ---" +
-                    "\n- URL: ${response.request().method()} - ${response.request().url()}" +
-                    "\n- Status code: ${response.code()}" +
-                    "\n- Headers: ${response.headers().forLog()}" +
-                    "\n- Body: ${response.peekBody(10_000).string()}" // allow max 10 KB of text
-                }
-
-                response
-            }
+            )
         }
     }
 }
 
+
+private val headersToSkp = listOf(
+    "accept-language", "content-type", "content-length", "accept-language", "transfer-encoding", "date", "server", "user-agent",
+    "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
+)
+
 private fun Headers.forLog(): String {
     val result = StringBuilder()
+    var skipped = 0
     for (i in 0 until size()) {
-        result.append("\n  - ").append(name(i)).append(": ").append(value(i))
+        val name = name(i)
+        if (!headersToSkp.contains(name.lowercase())) {
+            result.append("\n  - ${name}: ${value(i)}")
+        } else {
+            skipped += 1
+        }
     }
+    result.insert(0, "$skipped filtered out")
     return result.toString()
 }

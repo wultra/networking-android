@@ -55,7 +55,7 @@ internal class GsonResponseBodyConverter<T>(private val gson: Gson, private val 
                 return result
             }
         } catch (t: Throwable) {
-            Logger.e("Failed to process response", t)
+            Logger.e("Failed to process response: $t")
             throw t
         }
     }
