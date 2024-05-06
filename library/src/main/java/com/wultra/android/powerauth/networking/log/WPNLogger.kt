@@ -14,9 +14,11 @@ import java.net.URL
  * Logger provides simple logging facility.
  *
  * Logs are written with "WPN" tag to standard [android.util.Log] logger.
+ * You can set [logListener] to start listening on the
  */
 class WPNLogger {
 
+    /** Level of the log which should be effectively logged. */
     enum class VerboseLevel {
         /** Silences all messages. */
         OFF,
@@ -32,12 +34,27 @@ class WPNLogger {
 
     companion object {
 
-        @JvmStatic
         /** Current verbose level. */
-        var verboseLevel = VerboseLevel.WARNING
+        @JvmStatic var verboseLevel = VerboseLevel.WARNING
 
         /** Listener that can tap into the log stream and process it on it's own. */
-        var logListener: WPNLogListener? = null
+        @JvmStatic var logListener: WPNLogListener? = null
+
+        /** If HTTP traffic should be logged. */
+        @JvmStatic var logHttpTraffic = true
+
+        /**
+         * Headers to skip when logging HTTP traffic.
+         *
+         * Note that all headers are transformed to lowercase variant when added.
+         *
+         * Default headers to skip are:
+         * ```
+         * "accept-language", "content-type", "content-length", "accept-language", "transfer-encoding", "date", "server", "user-agent",
+         * "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
+         * ```
+         */
+        @JvmStatic var httpHeadersToSkip = HeaderBlockList()
 
         private val tag = "WPN"
 
@@ -86,19 +103,25 @@ class WPNLogger {
             builder.addInterceptor(
                 object: ECIESInterceptor {
                     override fun encryptedResponseReceived(url: URL, decrypted: ByteArray) {
-                        d {
-                            "- Decrypted response ($url) - ${decrypted.decodeToString()}"
+                        if (logHttpTraffic) {
+                            d {
+                                "- Decrypted response ($url) - ${decrypted.decodeToString()}"
+                            }
                         }
                     }
 
                     override fun intercept(chain: Interceptor.Chain): Response {
-
+                        
                         val request = chain.request()
+
+                        if (!logHttpTraffic) {
+                            return chain.proceed(request)
+                        }
 
                         i {
                             "\n<--- WPN REQUEST ---" +
                                 "\n- URL: ${request.method()} - ${request.url()}" +
-                                "\n- Headers: ${request.headers().forLog()}"
+                                "\n- Headers: ${request.headers().forLog(httpHeadersToSkip.toList())}"
                         }
 
                         try {
@@ -130,7 +153,7 @@ class WPNLogger {
                                     response.request().url()
                                 }" +
                                 "\n- Status code: ${response.code()}" +
-                                "\n- Headers: ${response.headers().forLog()}"
+                                "\n- Headers: ${response.headers().forLog(httpHeadersToSkip.toList())}"
                         }
 
                         try {
@@ -151,17 +174,49 @@ class WPNLogger {
     }
 }
 
-private val headersToSkp = listOf(
-    "accept-language", "content-type", "content-length", "accept-language", "transfer-encoding", "date", "server", "user-agent",
-    "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
-)
+/**
+ * Headers to skip when logging.
+ *
+ * Note that all headers are transformed to lowercase variant when added.
+ *
+ * Default headers to skip are:
+ * ```
+ * "accept-language", "content-type", "content-length", "accept-language", "transfer-encoding", "date", "server", "user-agent",
+ * "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
+ * ```
+ */
+class HeaderBlockList {
 
-private fun Headers.forLog(): String {
+    private val headersToSkp = mutableListOf(
+        "accept-language", "content-type", "content-length", "accept-language", "transfer-encoding", "date", "server", "user-agent",
+        "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
+    )
+
+    fun add(element: String): Boolean {
+        return headersToSkp.add(element.lowercase())
+    }
+
+    fun addAll(elements: Collection<String>): Boolean {
+        return headersToSkp.addAll(elements.map { it.lowercase() })
+    }
+
+    fun remove(element: String): Boolean {
+        return headersToSkp.remove(element.lowercase())
+    }
+
+    fun removeAll(elements: Collection<String>): Boolean {
+        return headersToSkp.removeAll(elements.map { it.lowercase() }.toSet())
+    }
+
+    fun toList() = headersToSkp.toList()
+}
+
+private fun Headers.forLog(skip: List<String>): String {
     val result = StringBuilder()
     var skipped = 0
     for (i in 0 until size()) {
         val name = name(i)
-        if (!headersToSkp.contains(name.lowercase())) {
+        if (!skip.contains(name.lowercase())) {
             result.append("\n  - ${name}: ${value(i)}")
         } else {
             skipped += 1

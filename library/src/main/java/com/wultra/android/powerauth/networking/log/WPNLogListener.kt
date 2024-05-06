@@ -5,7 +5,7 @@ interface WPNLogListener {
     /**
      * If the listener should follow selected verbosity level.
      *
-     * When set to true, then when [WPNLogger.VerboseLevel.ERROR] is selected as a [WPNLogger.verboseLevel], only [error] methods will be called.
+     * When set to true, then (for example) if [WPNLogger.VerboseLevel.ERROR] is selected as a [WPNLogger.verboseLevel], only [error] methods will be called.
      * When set to false, all methods might be called no matter the selected [WPNLogger.verboseLevel].
      */
     val followVerboseLevel: Boolean
