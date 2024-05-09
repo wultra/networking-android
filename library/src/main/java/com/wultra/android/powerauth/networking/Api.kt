@@ -31,6 +31,7 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.error.ApiError
 import com.wultra.android.powerauth.networking.error.ApiHttpException
 import com.wultra.android.powerauth.networking.error.ErrorResponse
+import com.wultra.android.powerauth.networking.log.WPNLogger
 import com.wultra.android.powerauth.networking.processing.GsonRequestBodyBytes
 import com.wultra.android.powerauth.networking.processing.GsonResponseBodyConverter
 import com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenListener
@@ -68,7 +69,7 @@ interface IApiCallResponseListener<T> {
  */
 abstract class Api(
     @PublishedApi internal val baseUrl: String,
-    @PublishedApi internal val okHttpClient: OkHttpClient,
+    okHttpClient: OkHttpClient,
     @PublishedApi internal val powerAuthSDK: PowerAuthSDK,
     @PublishedApi internal val gsonBuilder: GsonBuilder,
     @PublishedApi internal val appContext: Context,
@@ -80,7 +81,15 @@ abstract class Api(
      */
     var acceptLanguage = "en"
 
+    @PublishedApi internal val okHttpClient: OkHttpClient
+
     @PublishedApi internal val tokenProvider: IPowerAuthTokenProvider = tokenProvider ?: TokenManager(appContext, powerAuthSDK.tokenStore)
+
+    init {
+        val builder = okHttpClient.newBuilder()
+        WPNLogger.configure(builder)
+        this.okHttpClient = builder.build()
+    }
 
     // PUBLIC API
 
@@ -182,12 +191,14 @@ abstract class Api(
         if (ts.isTimeSynchronized) {
             completion(Result.success(Unit))
         } else {
+            WPNLogger.i("Time is not synchronized, requesting synchronization first.")
             ts.synchronizeTime(object: ITimeSynchronizationListener {
                 override fun onTimeSynchronizationSucceeded() {
                     completion(Result.success(Unit))
                 }
 
                 override fun onTimeSynchronizationFailed(t: Throwable) {
+                    WPNLogger.e("Time failed to synchronize, stopping whole request: $t")
                     completion(Result.failure(t))
                 }
             })
