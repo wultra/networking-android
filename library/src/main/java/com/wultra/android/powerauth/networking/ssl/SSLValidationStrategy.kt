@@ -21,16 +21,25 @@ import okhttp3.OkHttpClient
 
 /**
  * Strategy for validating SSL certificates.
- * For concrete implementation, use static methods [default], [noValidation] & [sslPinning]
+ * For concrete implementation, use static methods [system], [noValidation] & [sslPinning]
  */
 abstract class SSLValidationStrategy {
 
     companion object {
         /**
-         * Default (system) certificate validation
+         * Default (system) certificate validation.
          */
         @JvmStatic
-        fun default(): SSLValidationStrategy = DefaultSSLValidationStrategy()
+        fun system(): SSLValidationStrategy = DefaultSSLValidationStrategy()
+
+        /**
+         * Default (system) certificate validation.
+         *
+         * Deprecated.
+         */
+        @JvmStatic
+        @Deprecated("Use 'system' instead", ReplaceWith("SSLValidationStrategy.system()"))
+        fun default() = system()
 
         /**
          * Disables validation of SSL certificate. Use this strategy for HTTP endpoints
