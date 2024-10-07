@@ -128,7 +128,7 @@ class WPNLogger {
                             d {
                                 val buffer = Buffer()
                                 request.newBuilder().build().body?.writeTo(buffer)
-                                "- Body: $${buffer.readUtf8()}"
+                                "- Body: ${buffer.readUtf8()}"
                             }
                         } catch (e: Throwable) {
                             e("- Failed to parse request body: ${e.message}")
