@@ -21,18 +21,20 @@ import okhttp3.Response
 /**
  * Exception for describing HTTP exceptions.
  */
-class ApiHttpException(response: Response,
-                       val errorResponse: ErrorResponse? = null,
-                       cause: Throwable? = null):
+class ApiHttpException(
+    response: Response,
+    val errorResponse: ErrorResponse? = null,
+    cause: Throwable? = null
+) :
     RuntimeException(getErrorMessage(response), cause) {
 
     companion object {
         private fun getErrorMessage(response: Response): String {
-            return "HTTP " + response.code() + " " + response.message()
+            return "HTTP " + response.code + " " + response.message
         }
     }
 
     /** Response code */
-    val code: Int = response.code()
-    override val message: String = response.message()
+    val code: Int = response.code
+    override val message: String = response.message
 }
