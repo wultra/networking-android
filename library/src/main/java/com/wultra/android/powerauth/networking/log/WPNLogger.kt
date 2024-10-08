@@ -120,15 +120,15 @@ class WPNLogger {
 
                         i {
                             "\n<--- WPN REQUEST ---" +
-                                "\n- URL: ${request.method()} - ${request.url()}" +
-                                "\n- Headers: ${request.headers().forLog(httpHeadersToSkip.toList())}"
+                                "\n- URL: ${request.method} - ${request.url}" +
+                                "\n- Headers: ${request.headers.forLog(httpHeadersToSkip.toList())}"
                         }
 
                         try {
                             d {
                                 val buffer = Buffer()
-                                request.newBuilder().build().body()?.writeTo(buffer)
-                                "- Body: $${buffer.readUtf8()}"
+                                request.newBuilder().build().body?.writeTo(buffer)
+                                "- Body: ${buffer.readUtf8()}"
                             }
                         } catch (e: Throwable) {
                             e("- Failed to parse request body: ${e.message}")
@@ -141,7 +141,7 @@ class WPNLogger {
                         } catch (e: Throwable) {
                             e {
                                 "\n--- WPN REQUEST FAILED --->" +
-                                    "\n- URL: ${request.method()} - ${request.url()}" +
+                                    "\n- URL: ${request.method} - ${request.url}" +
                                     "\n- Error: $e"
                             }
                             throw e
@@ -149,11 +149,11 @@ class WPNLogger {
 
                         i {
                             "\n--- WPN RESPONSE --->" +
-                                "\n- URL: ${response.request().method()} - ${
-                                    response.request().url()
+                                "\n- URL: ${response.request.method} - ${
+                                    response.request.url
                                 }" +
-                                "\n- Status code: ${response.code()}" +
-                                "\n- Headers: ${response.headers().forLog(httpHeadersToSkip.toList())}"
+                                "\n- Status code: ${response.code}" +
+                                "\n- Headers: ${response.headers.forLog(httpHeadersToSkip.toList())}"
                         }
 
                         try {
@@ -214,7 +214,7 @@ class HeaderBlockList {
 private fun Headers.forLog(skip: List<String>): String {
     val result = StringBuilder()
     var skipped = 0
-    for (i in 0 until size()) {
+    for (i in 0 until size) {
         val name = name(i)
         if (!skip.contains(name.lowercase())) {
             result.append("\n  - ${name}: ${value(i)}")

@@ -50,6 +50,16 @@ repositories {
 implementation "com.wultra.android.powerauth:powerauth-networking:1.x.y"
 ```
 
+### Guaranteed PowerAuth Compatibility
+
+| WPN SDK           | PowerAuth SDK |  
+|-------------------|---------------|
+| `1.5.x`           | `1.9.x`       |
+| `1.4.x`           | `1.8.x`       |
+| `1.3.x`           | `1.8.x`       |
+| `1.1.x` - `1.2.x` | `1.7.x`       |
+| `1.0.x`           | `1.6.x`       |
+
 ## Open Source Code
 
 The code of the library is open source and you can freely browse it in our GitHub at [https://github.com/wultra/networking-android](https://github.com/wultra/networking-android/#docucheck-keep-link)
@@ -111,6 +121,28 @@ class MyServiceApi(
 
 Each endpoint you will target with your project must be defined for the service as an `Endpoint` instance. There are several types of endpoints based on the PowerAuth signature that is required.
 
+### End To End Encryption
+
+If the endpoint is end-to-end encrypted, you need to configure it in the constructor. Default value is set to `E2EEConfiguration.NOT_ENCRYPTED`.
+
+Possible values are:
+
+```kotlin
+/** End to end encryption configuration for an endpoint. */
+enum class E2EEConfiguration {
+    /** Endpoint is encrypted with the application scope. */
+    APPLICATION_SCOPE,
+    /** Endpoint is encrypted with the activation scope. */
+    ACTIVATION_SCOPE,
+    /** Endpoint is not encrypted. */
+    NOT_ENCRYPTED
+}
+```
+
+<!-- begin box info -->
+Whether an endpoint is encrypted or not is based on its backend definition.
+<!-- end -->
+
 ### Signed endpoint `EndpointSigned`
 
 For endpoints that are __signed__ by PowerAuth signature and can be end-to-end encrypted.
@@ -118,7 +150,7 @@ For endpoints that are __signed__ by PowerAuth signature and can be end-to-end e
 Example:
 
 ```kotlin
-val mySignedEndpoint = EndpointSigned<MyRequest, MyResponse>("api/my/endpoint/path", "/endpoint/uriId")
+val mySignedEndpoint = EndpointSigned<MyRequest, MyResponse>("api/my/endpoint/path", "/endpoint/uriId", E2EEConfiguration.NOT_ENCRYPTED)
 // uriId is defined by the endpoint issuer - ask your server developer/provider
 ```
 
@@ -131,7 +163,7 @@ More info for token-based authentication [can be found here](https://github.com/
 Example:
 
 ```kotlin
-val myTokenEndpoint = EndpointSignedWithToken<MyRequest, MyResponse>("api/my/endpoint/path", "possession_universal")
+val myTokenEndpoint = EndpointSignedWithToken<MyRequest, MyResponse>("api/my/endpoint/path", "possession_universal", E2EEConfiguration.NOT_ENCRYPTED)
 
 // token name (`possession_universal` in this case) is the name of the token as stored in the PowerAuthSDK
 // more info can be found in the PowerAuthSDK documentation
@@ -146,7 +178,7 @@ For endpoints that are __not signed__ by PowerAuth signature but can be end-to-e
 Example:
 
 ```kotlin
-val myBasicEndpoint = EndpointBasic<MyRequest, MyResponse>("api/my/endpoint/path")
+val myBasicEndpoint = EndpointBasic<MyRequest, MyResponse>("api/my/endpoint/path", E2EEConfiguration.NOT_ENCRYPTED)
 ```
 
 ## Creating an HTTP request
@@ -158,7 +190,6 @@ To create an HTTP request to your endpoint, you need to call the `Api.post` meth
 - `auth` - `PowerAuthAuthentication` instance that will sign the request  
   - this parameter is missing for the basic and token endpoints 
 - `headers` - custom HTTP headers, `null` by default
-- `encryptor` - End to End encryptor in case that the encryption is required, `null` by default
 - `okHttpInterceptor` - OkHttp interceptor to intercept requests eg. for logging purposes, `null` by default
 - `listener` - result listener
 
@@ -175,7 +206,7 @@ class SampleRequest(requestObject: SampleRequestData): ObjectRequest<SampleReque
 class SampleResponse(responseObject: SampleResponseData, status: Status): ObjectResponse<SampleResponseData>(responseObject, status)
 
 // endpoint configuration
-val myEndpoint = EndpointSigned<SampleRequest, SampleResponse>("api/my/endpoint/path", "/my/endoint/uriId")
+val myEndpoint = EndpointSigned<SampleRequest, SampleResponse>("api/my/endpoint/path", "/my/endoint/uriId", E2EEConfiguration.NOT_ENCRYPTED)
 
 // Authentication, for example purposes, expect user PIN 1111
 val auth = PowerAuthAuthentication.possessionWithPassword("1111")
@@ -190,8 +221,6 @@ post(
     auth,
     // custom HTTP headers
     hashMapOf(Pair("MyCustomHeader","Value"))
-    // encrypt with the application scope. null if not encrypted (usual case)
-    powerAuthSDK.eciesEncryptorForApplicationScope,
     // no HTTP interceptor
     null,
     // handle response or error
@@ -221,20 +250,20 @@ Each `ApiError ` has an optional `error` property for why the error was created.
 
 #### Known common API errors
 
-| Option Name | Description |
-|---|---|
-| `ERROR_GENERIC` | When unexpected error happened |
-| `POWERAUTH_AUTH_FAIL` | General authentication failure (wrong password, wrong activation state, etc...) |
-| `INVALID_REQUEST` | Invalid request sent - missing request object in the request |
-| `INVALID_ACTIVATION` | Activation is not valid (it is different from configured activation) |
-| `INVALID_APPLICATION` | Invalid application identifier is attempted for operation manipulation. |
-| `INVALID_OPERATION` | Invalid operation identifier is attempted for operation manipulation. |
-| `ERR_ACTIVATION` | Error during activation |
-| `ERR_AUTHENTICATION` | Error in case that PowerAuth authentication fails |
-| `ERR_SECURE_VAULT` | Error during secure vault unlocking |
-| `ERR_ENCRYPTION` | Returned in case encryption or decryption fails |
-| `TOO_MANY_REQUESTS` | Too many same requests |
-| `REMOTE_COMMUNICATION_ERROR` | Communication with remote system failed |
+| Option Name                  | Description                                                                               |
+|------------------------------|-------------------------------------------------------------------------------------------|
+| `ERROR_GENERIC`              | Network error that indicates a generic network issue (for example server internal error). |
+| `POWERAUTH_AUTH_FAIL`        | General authentication failure (wrong password, wrong activation state, etc...)           |
+| `INVALID_REQUEST`            | Invalid request sent - missing request object in the request                              |
+| `INVALID_ACTIVATION`         | Activation is not valid (it is different from configured activation)                      |
+| `INVALID_APPLICATION`        | Invalid application identifier is attempted for operation manipulation.                   |
+| `INVALID_OPERATION`          | Invalid operation identifier is attempted for operation manipulation.                     |
+| `ERR_ACTIVATION`             | Error during activation                                                                   |
+| `ERR_AUTHENTICATION`         | Error in case that PowerAuth authentication fails                                         |
+| `ERR_SECURE_VAULT`           | Error during secure vault unlocking                                                       |
+| `ERR_ENCRYPTION`             | Returned in case encryption or decryption fails                                           |
+| `TOO_MANY_REQUESTS`          | Too many same requests                                                                    |
+| `REMOTE_COMMUNICATION_ERROR` | Communication with remote system failed                                                   |
 
 #### Known specific API errors
 

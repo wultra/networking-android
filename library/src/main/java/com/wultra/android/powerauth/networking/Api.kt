@@ -42,14 +42,15 @@ import com.wultra.android.powerauth.networking.utils.ConnectionMonitor
 import com.wultra.android.powerauth.networking.utils.getCurrentLocale
 import io.getlime.security.powerauth.core.EciesCryptogram
 import io.getlime.security.powerauth.core.EciesEncryptor
-import io.getlime.security.powerauth.networking.response.ITimeSynchronizationListener
+import io.getlime.security.powerauth.networking.response.IGetEciesEncryptorListener
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import io.getlime.security.powerauth.sdk.PowerAuthSDK
 import io.getlime.security.powerauth.sdk.PowerAuthToken
 import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient.Builder
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
-import java.util.*
 
 interface IApiCallResponseListener<T> {
     fun onSuccess(result: T)
@@ -74,8 +75,8 @@ abstract class Api(
     @PublishedApi internal val gsonBuilder: GsonBuilder,
     @PublishedApi internal val appContext: Context,
     tokenProvider: IPowerAuthTokenProvider? = null,
-    @PublishedApi internal val userAgent: UserAgent = UserAgent.libraryDefault(appContext)) {
-
+    @PublishedApi internal val userAgent: UserAgent = UserAgent.libraryDefault(appContext)
+) {
     /**
      * Language sent in request header. Default value is "en".
      */
@@ -97,17 +98,10 @@ abstract class Api(
         data: TRequestData,
         endpoint: EndpointBasic<TRequestData, TResponseData>,
         headers: HashMap<String, String>? = null,
-        encryptor: EciesEncryptor? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
-        listener: IApiCallResponseListener<TResponseData>) {
-
-        synchronizeTime {
-            it.onSuccess {
-                makeCall(getBodyBytes(data), endpoint, headers ?: hashMapOf(), encryptor, okHttpInterceptor, listener)
-            }.onFailure {  e ->
-                listener.onFailure(ApiError(e))
-            }
-        }
+        listener: IApiCallResponseListener<TResponseData>
+    ) {
+        makeCall(getBodyBytes(data), endpoint, headers ?: hashMapOf(), okHttpInterceptor, listener)
     }
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
@@ -115,65 +109,51 @@ abstract class Api(
         endpoint: EndpointSigned<TRequestData, TResponseData>,
         authentication: PowerAuthAuthentication,
         headers: HashMap<String, String>? = null,
-        encryptor: EciesEncryptor? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
-        listener: IApiCallResponseListener<TResponseData>) {
+        listener: IApiCallResponseListener<TResponseData>
+    ) {
 
-        synchronizeTime {
-            it.onSuccess {
+        val bodyBytes = getBodyBytes(data)
 
-                val bodyBytes = getBodyBytes(data)
+        val authorizationHeader = powerAuthSDK.requestSignatureWithAuthentication(
+            appContext,
+            authentication,
+            "POST",
+            endpoint.uriId,
+            bodyBytes
+        )
 
-                val authorizationHeader = powerAuthSDK.requestSignatureWithAuthentication(
-                    appContext,
-                    authentication,
-                    "POST",
-                    endpoint.uriId,
-                    bodyBytes
-                )
+        val newHeaders = headers ?: hashMapOf()
+        newHeaders[authorizationHeader.key] = authorizationHeader.value
 
-                val newHeaders = headers ?: hashMapOf()
-                newHeaders[authorizationHeader.key] = authorizationHeader.value
-
-                makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
-            }.onFailure {  e ->
-                listener.onFailure(ApiError(e))
-            }
-        }
+        makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
     }
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
         data: TRequestData,
         endpoint: EndpointSignedWithToken<TRequestData, TResponseData>,
         headers: HashMap<String, String>? = null,
-        encryptor: EciesEncryptor? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
-        listener: IApiCallResponseListener<TResponseData>) {
+        listener: IApiCallResponseListener<TResponseData>
+    ) {
+        tokenProvider.getTokenAsync(
+            endpoint.tokenName,
+            object : IPowerAuthTokenListener {
+                override fun onReceived(token: PowerAuthToken) {
 
-        synchronizeTime {
-            it.onSuccess {
-                tokenProvider.getTokenAsync(
-                    endpoint.tokenName,
-                    object : IPowerAuthTokenListener {
-                        override fun onReceived(token: PowerAuthToken) {
+                    val tokenHeader = token.generateHeader()
+                    val bodyBytes = getBodyBytes(data)
+                    val newHeaders = headers ?: hashMapOf()
+                    newHeaders[tokenHeader.key] = tokenHeader.value
 
-                            val tokenHeader = token.generateHeader()
-                            val bodyBytes = getBodyBytes(data)
-                            val newHeaders = headers ?: hashMapOf()
-                            newHeaders[tokenHeader.key] = tokenHeader.value
+                    makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
+                }
 
-                            makeCall(bodyBytes, endpoint, newHeaders, encryptor, okHttpInterceptor, listener)
-                        }
-
-                        override fun onFailed(e: Throwable) {
-                            listener.onFailure(ApiError(e))
-                        }
-                    }
-                )
-            }.onFailure {  e ->
-                listener.onFailure(ApiError(e))
+                override fun onFailed(e: Throwable) {
+                    listener.onFailure(ApiError(e))
+                }
             }
-        }
+        )
     }
 
     // PRIVATE API
@@ -186,123 +166,129 @@ abstract class Api(
     }
 
     @PublishedApi
-    internal fun synchronizeTime(completion: (Result<Unit>) -> Unit) {
-        val ts = powerAuthSDK.timeSynchronizationService
-        if (ts.isTimeSynchronized) {
-            completion(Result.success(Unit))
-        } else {
-            WPNLogger.i("Time is not synchronized, requesting synchronization first.")
-            ts.synchronizeTime(object: ITimeSynchronizationListener {
-                override fun onTimeSynchronizationSucceeded() {
-                    completion(Result.success(Unit))
-                }
-
-                override fun onTimeSynchronizationFailed(t: Throwable) {
-                    WPNLogger.e("Time failed to synchronize, stopping whole request: $t")
-                    completion(Result.failure(t))
-                }
-            })
-        }
-    }
-
-    @PublishedApi
     internal inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> makeCall(
         bodyBytes: ByteArray,
         endpoint: Endpoint<TRequestData, TResponseData>,
         headers: HashMap<String, String>,
-        encryptor: EciesEncryptor? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
-        listener: IApiCallResponseListener<TResponseData>) {
+        listener: IApiCallResponseListener<TResponseData>
+    ) {
 
         var bytes = bodyBytes
 
-        if (encryptor != null) {
-            val cryptogram = encryptor.encryptRequest(bodyBytes)
-            if (cryptogram != null) {
-                val e2eePayload = E2EERequest(
-                    cryptogram.keyBase64,
-                    cryptogram.bodyBase64,
-                    cryptogram.macBase64,
-                    cryptogram.nonceBase64,
-                    cryptogram.timestamp
-                )
-                bytes = Gson().toJson(e2eePayload).encodeToByteArray()
-                if (endpoint is EndpointBasic || endpoint is EndpointSignedWithToken) {
-                    headers[encryptor.metadata.httpHeaderKey] = encryptor.metadata.httpHeaderValue
-                }
-            }
-        }
-
-        val body = RequestBody.create(MediaType.parse("application/json; charset=UTF-8")!!, bytes)
-
-        val requestBuilder = Request.Builder()
-            .url("${baseUrl.removeSuffix("/")}/${endpoint.endpointUrlPath.removePrefix("/")}")
-            .post(body)
-            .header("Accept-Language", acceptLanguage)
-
-        userAgent.value?.let { requestBuilder.header("User-Agent", it) }
-
-        headers.forEach { requestBuilder.header(it.key, it.value) }
-
-        val request = requestBuilder.build()
-        val client = if (okHttpInterceptor != null) {
-            val builder = okHttpClient.newBuilder()
-            okHttpInterceptor.intercept(builder)
-            builder.build()
-        } else {
-            okHttpClient
-        }
-        val call = client.newCall(request)
-        call.enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                listener.onFailure(ApiError(e))
-            }
-
-            override fun onResponse(call: Call, response: Response) {
-                try {
-                    if (response.isSuccessful) {
-
-                        val resData = if (encryptor != null) {
-                            val envelope = Gson().fromJson(response.body()!!.string(), E2EEResponse::class.java)
-                            val decrypted = encryptor.decryptResponse(
-                                EciesCryptogram(
-                                    envelope.encryptedData,
-                                    envelope.mac,
-                                    null,
-                                    envelope.nonce,
-                                    envelope.timestamp ?: 0
-                                )
-                            )
-                            okHttpClient.interceptors().mapNotNull { it as? ECIESInterceptor }.forEach {
-                                it.encryptedResponseReceived(request.url().url(), decrypted)
-                            }
-                            decrypted
-                        } else {
-                            response.body()!!.bytes()
+        getEncryptor(endpoint) { result ->
+            result.onFailure {
+                listener.onFailure(ApiError(it))
+            }.onSuccess { encryptor ->
+                if (encryptor != null) {
+                    val cryptogram = encryptor.encryptRequest(bodyBytes)
+                    if (cryptogram != null) {
+                        val e2eePayload = E2EERequest(
+                            cryptogram.temporaryKeyId,
+                            cryptogram.keyBase64,
+                            cryptogram.bodyBase64,
+                            cryptogram.macBase64,
+                            cryptogram.nonceBase64,
+                            cryptogram.timestamp
+                        )
+                        bytes = Gson().toJson(e2eePayload).encodeToByteArray()
+                        if (endpoint is EndpointBasic || endpoint is EndpointSignedWithToken) {
+                            headers[encryptor.metadata.httpHeaderKey] = encryptor.metadata.httpHeaderValue
                         }
-
-                        val gson = gsonBuilder.create()
-                        val typeAdapter = getTypeAdapter<TResponseData>(gson)
-                        val converter = GsonResponseBodyConverter(gson, typeAdapter)
-                        listener.onSuccess(converter.convert(resData))
-                    } else {
-                        val gson = gsonBuilder.create()
-                        val typeAdapter = getTypeAdapter<ErrorResponse>(gson)
-                        val converter = GsonResponseBodyConverter(gson, typeAdapter)
-                        val errorResponse = converter.convert(response.body()!!)
-                        listener.onFailure(ApiError(ApiHttpException(response, errorResponse)))
                     }
-                } catch (e: Throwable) {
-                    // do not allow the app to crash when unexpected body is returned
-                    listener.onFailure(ApiError(ApiHttpException(response, errorResponse = null, cause = e)))
                 }
+
+                val body = bytes.toRequestBody(
+                    "application/json; charset=UTF-8".toMediaTypeOrNull(),
+                    0,
+                    bytes.size
+                )
+
+                val requestBuilder = Request.Builder()
+                    .url("${baseUrl.removeSuffix("/")}/${endpoint.endpointUrlPath.removePrefix("/")}")
+                    .post(body)
+                    .header("Accept-Language", acceptLanguage)
+
+                userAgent.value?.let { requestBuilder.header("User-Agent", it) }
+
+                headers.forEach { requestBuilder.header(it.key, it.value) }
+
+                val request = requestBuilder.build()
+                val client = if (okHttpInterceptor != null) {
+                    val builder = okHttpClient.newBuilder()
+                    okHttpInterceptor.intercept(builder)
+                    builder.build()
+                } else {
+                    okHttpClient
+                }
+                val call = client.newCall(request)
+                call.enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) {
+                        listener.onFailure(ApiError(e))
+                    }
+
+                    override fun onResponse(call: Call, response: Response) {
+                        try {
+                            if (response.isSuccessful) {
+
+                                val resData = if (encryptor != null) {
+                                    val envelope = Gson().fromJson(response.body!!.string(), E2EEResponse::class.java)
+                                    val decrypted = encryptor.decryptResponse(envelope.toCryptogram())
+                                    okHttpClient.interceptors.mapNotNull { it as? ECIESInterceptor }.forEach {
+                                        it.encryptedResponseReceived(request.url.toUrl(), decrypted)
+                                    }
+                                    decrypted
+                                } else {
+                                    response.body!!.bytes()
+                                }
+
+                                val gson = gsonBuilder.create()
+                                val typeAdapter = getTypeAdapter<TResponseData>(gson)
+                                val converter = GsonResponseBodyConverter(gson, typeAdapter)
+                                listener.onSuccess(converter.convert(resData))
+                            } else {
+                                val gson = gsonBuilder.create()
+                                val typeAdapter = getTypeAdapter<ErrorResponse>(gson)
+                                val converter = GsonResponseBodyConverter(gson, typeAdapter)
+                                val errorResponse = converter.convert(response.body!!)
+                                listener.onFailure(ApiError(ApiHttpException(response, errorResponse)))
+                            }
+                        } catch (e: Throwable) {
+                            // do not allow the app to crash when unexpected body is returned
+                            listener.onFailure(ApiError(ApiHttpException(response, errorResponse = null, cause = e)))
+                        }
+                    }
+                })
             }
-        })
+        }
     }
 
     @PublishedApi
     internal inline fun <reified T> getTypeAdapter(gson: Gson): TypeAdapter<T> {
         return gson.getAdapter(TypeToken.get(T::class.java))
+    }
+
+    @PublishedApi
+    internal inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> getEncryptor(
+        endpoint: Endpoint<TRequestData, TResponseData>,
+        crossinline callback: (Result<EciesEncryptor?>) -> Unit
+    ) {
+
+        val listener = object : IGetEciesEncryptorListener {
+            override fun onGetEciesEncryptorSuccess(encryptor: EciesEncryptor) {
+                callback(Result.success(encryptor))
+            }
+
+            override fun onGetEciesEncryptorFailed(t: Throwable) {
+                callback(Result.failure(t))
+            }
+        }
+
+        when (endpoint.e2eeConfiguration) {
+            E2EEConfiguration.APPLICATION_SCOPE -> powerAuthSDK.getEciesEncryptorForApplicationScope(listener)
+            E2EEConfiguration.ACTIVATION_SCOPE -> powerAuthSDK.getEciesEncryptorForActivationScope(appContext, listener)
+            E2EEConfiguration.NOT_ENCRYPTED -> callback(Result.success(null))
+        }
     }
 }
 
@@ -335,17 +321,21 @@ class UserAgent internal constructor(@PublishedApi internal val value: String? =
 
 /** Envelope for E2EE requests. */
 @PublishedApi internal class E2EERequest(
+    @SerializedName("temporaryKeyId") val temporaryKeyId: String?,
     @SerializedName("ephemeralPublicKey") val ephemeralPublicKey: String?,
     @SerializedName("encryptedData") val encryptedData: String?,
     @SerializedName("mac") val mac: String?,
     @SerializedName("nonce") val nonce: String?,
     @SerializedName("timestamp") val timestamp: Long?
-    )
+)
 
 /** Envelope for E2EE responses. */
-@PublishedApi internal class E2EEResponse(
+@PublishedApi
+internal class E2EEResponse(
     @SerializedName("encryptedData") val encryptedData: String?,
     @SerializedName("mac") val mac: String?,
     @SerializedName("nonce") val nonce: String?,
     @SerializedName("timestamp") val timestamp: Long?
-    )
+) {
+    fun toCryptogram() = EciesCryptogram(null, encryptedData, mac, null, nonce, timestamp ?: 0)
+}

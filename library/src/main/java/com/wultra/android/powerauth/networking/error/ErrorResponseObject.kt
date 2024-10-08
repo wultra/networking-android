@@ -22,12 +22,12 @@ import com.google.gson.annotations.SerializedName
  * Model class for error response.
  */
 data class ErrorResponseObject(
-        @SerializedName("code")
-        val code: String,
+    @SerializedName("code")
+    val code: String,
 
-        @SerializedName("message")
-        val message: String) {
-
+    @SerializedName("message")
+    val message: String
+) {
     val errorCode: ApiErrorCode?
         get() {
             return ApiErrorCode.errorCodeFromCodeString(code)

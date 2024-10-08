@@ -54,6 +54,9 @@ enum class ApiErrorCode(val message: String) {
     /** Returned in case encryption or decryption fails **/
     ERR_ENCRYPTION("ERR_ENCRYPTION"),
 
+    /** Temporary key not matched on the server. **/
+    ERR_TEMPORARY_KEY("ERR_TEMPORARY_KEY"),
+
     /* PUSH ERRORS */
 
     /** Error code for a situation when registration to push notification fails **/

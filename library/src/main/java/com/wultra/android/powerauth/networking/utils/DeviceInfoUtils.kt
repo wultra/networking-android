@@ -31,7 +31,6 @@ fun Context.getCurrentLocale(): Locale {
     }
 }
 
-
 /**
  * Returns a well-formed IETF BCP 47 language tag representing
  * this locale.
@@ -43,7 +42,7 @@ fun Locale.toBcp47LanguageTag(): String {
         return this.toLanguageTag()
     }
 
-    val sep = '-'       // we will use a dash as per BCP 47
+    val sep = '-' // we will use a dash as per BCP 47
     var language = this.language
     var region = this.country
     var variant = variant
@@ -57,14 +56,14 @@ fun Locale.toBcp47LanguageTag(): String {
     }
 
     if (language.isEmpty() || !language.matches("\\p{Alpha}{2,8}".toRegex())) {
-        language = "und"       // Follow the Locale#toLanguageTag() implementation
+        language = "und" // Follow the Locale#toLanguageTag() implementation
         // which says to return "und" for Undetermined
     } else if (language == "iw") {
-        language = "he"        // correct deprecated "Hebrew"
+        language = "he" // correct deprecated "Hebrew"
     } else if (language == "in") {
-        language = "id"        // correct deprecated "Indonesian"
+        language = "id" // correct deprecated "Indonesian"
     } else if (language == "ji") {
-        language = "yi"        // correct deprecated "Yiddish"
+        language = "yi" // correct deprecated "Yiddish"
     }
 
     // ensure valid country code, if not well formed, it's omitted

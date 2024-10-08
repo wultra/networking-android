@@ -34,5 +34,4 @@ data class ApiError(val e: Throwable) {
             null
         }
     }
-
 }

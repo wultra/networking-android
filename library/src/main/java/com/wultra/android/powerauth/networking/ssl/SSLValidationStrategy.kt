@@ -63,7 +63,6 @@ internal class DefaultSSLValidationStrategy: SSLValidationStrategy() {
         // Nothing to change, use default
         return builder
     }
-
 }
 internal class NoSSLValidationStrategy: SSLValidationStrategy() {
     override fun configure(builder: OkHttpClient.Builder): OkHttpClient.Builder {
@@ -73,7 +72,6 @@ internal class NoSSLValidationStrategy: SSLValidationStrategy() {
         builder.hostnameVerifier(noValidationStrategy.hostnameVerifier!!)
         return builder
     }
-
 }
 internal class PinningSSLValidationStrategy(private val provider: ISSLPinningProvider): SSLValidationStrategy() {
     override fun configure(builder: OkHttpClient.Builder): OkHttpClient.Builder {
@@ -81,4 +79,3 @@ internal class PinningSSLValidationStrategy(private val provider: ISSLPinningPro
         return builder
     }
 }
-

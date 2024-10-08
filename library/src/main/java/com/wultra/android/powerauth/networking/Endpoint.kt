@@ -19,22 +19,57 @@ package com.wultra.android.powerauth.networking
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.StatusResponse
 
-abstract class Endpoint<TRequestData: BaseRequest, TResponseData: StatusResponse>(val endpointUrlPath: String)
+/**
+ * Class that describes a server endpoint.
+ *
+ * @param TRequestData Type of the request data.
+ * @param TResponseData Type of the response data.
+ * @property endpointUrlPath URL path for the endpoint. For example "/my/custom/endpoint".
+ * @property e2eeConfiguration End to end encryption configuration for the endpoint.
+ */
+abstract class Endpoint<TRequestData: BaseRequest, TResponseData: StatusResponse>(val endpointUrlPath: String, val e2eeConfiguration: E2EEConfiguration)
 
 /**
- * Basic endpoint - without any authorization header.
+ * Basic endpoint not signed with PowerAuth.
+ *
+ * @param TRequestData Type of the request data.
+ * @param TResponseData Type of the response data.
+ * @param endpointUrlPath URL path for the endpoint. For example "/my/custom/endpoint".
+ * @param e2eeConfiguration End to end encryption configuration for the endpoint. `NOT_ENCRYPTED` by default
  */
-class EndpointBasic<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String):
-    Endpoint<TRequestData, TResponseData>(endpointUrlPath)
+class EndpointBasic<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String, e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED):
+    Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
 
 /**
- * Signed endpoint via PowerAuth signature.
+ * Endpoint signed with PowerAuth signature.
+ *
+ * @param TRequestData Type of the request data.
+ * @param TResponseData Type of the response data.
+ * @param endpointUrlPath URL path for the endpoint. For example "/my/custom/endpoint".
+ * @property uriId Endpoint ID. Note that this is different from endpoint URL
+ * @param e2eeConfiguration End to end encryption configuration for the endpoint.
  */
-class EndpointSigned<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String, val uriId: String):
-    Endpoint<TRequestData, TResponseData>(endpointUrlPath)
+class EndpointSigned<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String, val uriId: String, e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED):
+    Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
 
 /**
- * Signed endpoint with token.
+ * Endpoint signed with PowerAuth Token signature.
+ *
+ * @param TRequestData Type of the request data.
+ * @param TResponseData Type of the response data.
+ * @param endpointUrlPath  URL path for the endpoint. For example "/my/custom/endpoint".
+ * @property tokenName Name of the token used for signature.
+ * @param e2eeConfiguration End to end encryption configuration for the endpoint.
  */
-class EndpointSignedWithToken<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String, val tokenName: String):
-    Endpoint<TRequestData, TResponseData>(endpointUrlPath)
+class EndpointSignedWithToken<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String, val tokenName: String, e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED):
+    Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
+
+/** End to end encryption configuration for an endpoint. */
+enum class E2EEConfiguration {
+    /** Endpoint is encrypted with the application scope. */
+    APPLICATION_SCOPE,
+    /** Endpoint is encrypted with the activation scope. */
+    ACTIVATION_SCOPE,
+    /** Endpoint is not encrypted. */
+    NOT_ENCRYPTED
+}
