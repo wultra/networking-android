@@ -61,7 +61,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.9.3")
 
     // Dependencies
-    compileOnly("com.wultra.android.powerauth:powerauth-sdk:1.9.1")
+    compileOnly("com.wultra.android.powerauth:powerauth-sdk:1.9.2")
     compileOnly("io.getlime.core:rest-model-base:1.2.0")
 }
 
