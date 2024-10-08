@@ -54,7 +54,7 @@ object ConnectionMonitor {
         try {
             val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             status = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    getConnectionStatus(connectivityManager)
+                getConnectionStatus(connectivityManager)
             } else {
                 val activeNetworkInfo = connectivityManager.activeNetworkInfo
                 if (activeNetworkInfo != null && activeNetworkInfo.isConnected) {

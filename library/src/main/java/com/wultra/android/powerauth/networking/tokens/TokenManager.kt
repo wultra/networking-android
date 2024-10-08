@@ -28,7 +28,8 @@ import io.getlime.security.powerauth.sdk.PowerAuthTokenStore
  */
 internal class TokenManager(
     private val appContext: Context,
-    private val powerAuthTokenStore: PowerAuthTokenStore) : IPowerAuthTokenProvider {
+    private val powerAuthTokenStore: PowerAuthTokenStore
+) : IPowerAuthTokenProvider {
 
     override fun getTokenAsync(tokenName: String, listener: IPowerAuthTokenListener) {
         val localPowerAuthToken = powerAuthTokenStore.getLocalToken(appContext, tokenName)
@@ -37,15 +38,20 @@ internal class TokenManager(
         } else {
             val authentication = PowerAuthAuthentication.possession()
             try {
-                powerAuthTokenStore.requestAccessToken(appContext, tokenName, authentication, object : IGetTokenListener {
-                    override fun onGetTokenSucceeded(token: PowerAuthToken) {
-                        listener.onReceived(token)
-                    }
+                powerAuthTokenStore.requestAccessToken(
+                    appContext,
+                    tokenName,
+                    authentication,
+                    object : IGetTokenListener {
+                        override fun onGetTokenSucceeded(token: PowerAuthToken) {
+                            listener.onReceived(token)
+                        }
 
-                    override fun onGetTokenFailed(t: Throwable) {
-                        listener.onFailed(t)
+                        override fun onGetTokenFailed(t: Throwable) {
+                            listener.onFailed(t)
+                        }
                     }
-                })
+                )
             } catch (t: Throwable) {
                 listener.onFailed(t)
             }

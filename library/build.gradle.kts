@@ -50,6 +50,17 @@ android {
             suppressWarnings = false
         }
     }
+
+    // Custom ktlint script
+    tasks.register("ktlint") {
+        logger.lifecycle("ktlint")
+        exec {
+            commandLine = listOf("./../scripts/lint.sh", "--no-error")
+        }
+    }
+
+    // Make ktlint run before build
+    tasks.getByName("preBuild").dependsOn("ktlint")
 }
 
 dependencies {

@@ -18,7 +18,6 @@ package com.wultra.android.powerauth.networking.ssl
 
 import okhttp3.OkHttpClient
 
-
 /**
  * SSL pinning provider configures HTTP client to verify SSL certificates
  */
