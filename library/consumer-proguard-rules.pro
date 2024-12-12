@@ -5,5 +5,5 @@
   @com.google.gson.annotations.SerializedName <fields>;
 }
 
--keepclassmembers class com.wultra.android.powerauth.networking.data.** { *; }
--keepclassmembers class com.wultra.android.powerauth.networking.error.** { *; }
+-keepclasseswithmembers class com.wultra.android.powerauth.networking.data.** { *; }
+-keepclasseswithmembers class com.wultra.android.powerauth.networking.error.** { *; }
