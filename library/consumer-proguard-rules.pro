@@ -5,5 +5,12 @@
   @com.google.gson.annotations.SerializedName <fields>;
 }
 
--keepclasseswithmembers, allowobfuscation class com.wultra.android.powerauth.networking.data.** { *; }
--keepclasseswithmembers, allowobfuscation class com.wultra.android.powerauth.networking.error.** { *; }
+# keeps fields in the class
+-keepclassmembers class com.wultra.android.powerauth.networking.data.** { <fields>; }
+# handle R8 full mode optimizations
+-keep, allowobfuscation class com.wultra.android.powerauth.networking.data.**
+
+# keeps fields in the class
+-keepclassmembers class com.wultra.android.powerauth.networking.error.** { <fields>; }
+# handle R8 full mode optimizations
+-keep, allowobfuscation class com.wultra.android.powerauth.networking.error.**
