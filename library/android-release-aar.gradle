@@ -135,8 +135,8 @@ publishing {
         maven {
             name = 'sonatype'
 
-            def releasesRepoUrl = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
-            def snapshotsRepoUrl = "https://s01.oss.sonatype.org/content/repositories/snapshots/"
+            def releasesRepoUrl = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://central.sonatype.com/repository/maven-snapshots/"
             url = isReleaseBuild() ? releasesRepoUrl : snapshotsRepoUrl
 
             credentials {
@@ -173,4 +173,47 @@ afterEvaluate {
     signReleasePublication.dependsOn bundleReleaseAar
     publishReleasePublicationToSonatypeRepository.dependsOn bundleReleaseAar
     publishReleasePublicationToMavenLocal.dependsOn bundleReleaseAar
+}
+
+task afterPublish {
+    doLast {
+
+        // After the publication is done, we can upload the artifacts to Nexus
+
+        def auth = "${NEXUS_USERNAME}:${NEXUS_PASSWORD}".getBytes("UTF-8")
+        def encodedAuth = Base64.encoder.encodeToString(auth)
+
+        logger.lifecycle("Publishing with staging API.")
+
+        def url = new URL("https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/com.wultra")
+        def connection = url.openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.doOutput = true
+        connection.setRequestProperty("Authorization", "Basic ${encodedAuth}")
+
+        // Send request and read response
+        try {
+            def responseCode = connection.responseCode
+            def responseMessage = connection.inputStream.text
+
+            if (responseCode >= 200 && responseCode < 300) {
+                logger.lifecycle("Upload successful:\n${responseMessage}")
+            } else {
+                def errorMessage = connection.errorStream?.text
+                logger.lifecycle("Upload failed with code ${responseCode}:\n${errorMessage}")
+                throw new GradleException("Upload to Nexus failed")
+            }
+        } catch (IOException e) {
+            def errorMessage = connection.errorStream?.text
+            logger.lifecycle("Upload failed:  ${errorMessage}")
+            throw new GradleException("Upload to Nexus failed", e)
+        } finally {
+            connection.disconnect()
+        }
+    }
+}
+
+// Hook it to the publish task
+tasks.named("publishReleasePublicationToSonatypeRepository") {
+    finalizedBy(afterPublish)
 }
