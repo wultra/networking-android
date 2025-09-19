@@ -20,6 +20,8 @@ plugins {
     id("org.jetbrains.dokka")
 }
 
+apply<com.wultra.plugin.WultraAndroidReleasePlugin>()
+
 android {
     namespace = "com.wultra.android.powerauth"
     compileSdk = Constants.Android.compileSdkVersion
@@ -30,8 +32,6 @@ android {
         @Suppress("DEPRECATION")
         targetSdk = Constants.Android.targetSdkVersion
 
-        // since Android Gradle Plugin 4.1.0
-        // VERSION_CODE and VERSION_NAME are not generated for libraries
         configIntField("VERSION_CODE", 1)
         configStringField("VERSION_NAME", properties["VERSION_NAME"] as String)
     }
@@ -75,5 +75,3 @@ dependencies {
     compileOnly("com.wultra.android.powerauth:powerauth-sdk:1.9.2")
     compileOnly("io.getlime.core:rest-model-base:1.2.0")
 }
-
-apply("android-release-aar.gradle")
