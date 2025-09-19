@@ -40,4 +40,4 @@ SCRIPT_FOLDER=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 URL="https://raw.githubusercontent.com/wultra/wultra-infrastructure/refs/heads/mobile-release/mobile-release/v1/prepare-release.js"
 
 # execute the remote node and pass all parameters to it + add path parameter to the root of the repository
-curl -fsSL https://raw.githubusercontent.com/wultra/wultra-infrastructure/refs/heads/mobile-release/mobile-release/v1/prepare-release.js | node - -p "${SCRIPT_FOLDER}/.." "${@}"
+curl -fsSL "${URL}" | node - -p "${SCRIPT_FOLDER}/.." "${@}"
