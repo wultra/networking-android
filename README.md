@@ -317,7 +317,7 @@ Log listener comes in handy when you want to log into a file or some online serv
 
 ## Changelog
 
-### TBA
+### 1.5.1
 
 - Time is now always synchronized when creating token-based authorization headers
 
