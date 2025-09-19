@@ -43,6 +43,7 @@ import com.wultra.android.powerauth.networking.utils.getCurrentLocale
 import io.getlime.security.powerauth.core.EciesCryptogram
 import io.getlime.security.powerauth.core.EciesEncryptor
 import io.getlime.security.powerauth.networking.response.IGetEciesEncryptorListener
+import io.getlime.security.powerauth.networking.response.ITimeSynchronizationListener
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import io.getlime.security.powerauth.sdk.PowerAuthSDK
 import io.getlime.security.powerauth.sdk.PowerAuthToken
@@ -136,27 +137,55 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
-        tokenProvider.getTokenAsync(
-            endpoint.tokenName,
-            object : IPowerAuthTokenListener {
-                override fun onReceived(token: PowerAuthToken) {
+        // note: remove time synchronization from here after the https://github.com/wultra/networking-android/issues/67 is implemented
+        // then, use powerAuthTokenStore.generateAuthorizationHeader.
+        synchronizeTime {
+            it.onSuccess {
+                tokenProvider.getTokenAsync(
+                    endpoint.tokenName,
+                    object : IPowerAuthTokenListener {
+                        override fun onReceived(token: PowerAuthToken) {
 
-                    val tokenHeader = token.generateHeader()
-                    val bodyBytes = getBodyBytes(data)
-                    val newHeaders = headers ?: hashMapOf()
-                    newHeaders[tokenHeader.key] = tokenHeader.value
+                            val tokenHeader = token.generateHeader()
+                            val bodyBytes = getBodyBytes(data)
+                            val newHeaders = headers ?: hashMapOf()
+                            newHeaders[tokenHeader.key] = tokenHeader.value
 
-                    makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
-                }
+                            makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
+                        }
 
-                override fun onFailed(e: Throwable) {
-                    listener.onFailure(ApiError(e))
-                }
+                        override fun onFailed(e: Throwable) {
+                            listener.onFailure(ApiError(e))
+                        }
+                    }
+                )
+            }.onFailure { e ->
+                listener.onFailure(ApiError(e))
             }
-        )
+        }
     }
 
     // PRIVATE API
+
+    @PublishedApi
+    internal fun synchronizeTime(completion: (Result<Unit>) -> Unit) {
+        val ts = powerAuthSDK.timeSynchronizationService
+        if (ts.isTimeSynchronized) {
+            completion(Result.success(Unit))
+        } else {
+            WPNLogger.i("Time is not synchronized, requesting synchronization first.")
+            ts.synchronizeTime(object: ITimeSynchronizationListener {
+                override fun onTimeSynchronizationSucceeded() {
+                    completion(Result.success(Unit))
+                }
+
+                override fun onTimeSynchronizationFailed(t: Throwable) {
+                    WPNLogger.e("Time failed to synchronize, stopping whole request: $t")
+                    completion(Result.failure(t))
+                }
+            })
+        }
+    }
 
     @PublishedApi
     internal inline fun <reified TRequestData: BaseRequest> getBodyBytes(data: TRequestData): ByteArray {

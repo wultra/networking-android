@@ -29,6 +29,7 @@ We use this SDK in our other open-source projects that you can take inspiration 
 - [Error Handling](#error-handling)
 - [Language Configuration](#language-configuration)
 - [Logging](#logging)
+- [Changelog](#changelog)
 <!-- end -->
 
 ## SDK Integration
@@ -313,6 +314,32 @@ The `WPNLogger` class offers a static `logListener` property. If you provide a l
 <!-- begin box info -->
 Log listener comes in handy when you want to log into a file or some online service.
 <!-- end -->
+
+## Changelog
+
+### 1.5.1
+
+- Time is now always synchronized when creating token-based authorization headers
+
+### 1.5.0
+
+- Upgrade PowerAuth SDK to `1.9.0+`
+- Deprecated default SSL behavior in favor of the "system" name
+
+### 1.4.0
+
+- Logging improvements
+
+### 1.3.1
+- Added new `ApiErrorCodes`
+- Update targetSdk to `33`; updated dependencies
+- Update AGP to `8.1.4`
+- Raise minSdk to `21`
+- Improved JavaDoc
+- Introduced this documentation
+
+### 1.3.0
+- Upgrade PowerAuth SDK to `1.8.0`
 
 <!-- begin remove -->
 ## Web Documentation
