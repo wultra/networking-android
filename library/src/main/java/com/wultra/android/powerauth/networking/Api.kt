@@ -264,7 +264,7 @@ abstract class Api(
                                 val resData = if (encryptor != null) {
                                     val decryptedData = encryptor.decryptResponse(CoreEncryptedResponse(response.body!!.bytes()))
                                     okHttpClient.interceptors.mapNotNull { it as? ECIESInterceptor }.forEach {
-                                        // TODO: @Marek - Might be removed?
+                                        // only cryptogram is passed down the interceptor
                                         it.encryptedResponseReceived(request.url.toUrl(), decryptedData)
                                     }
                                     decryptedData
