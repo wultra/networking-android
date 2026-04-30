@@ -65,6 +65,8 @@ interface IApiCallResponseListener<T> {
  * @param okHttpClient Configured Http Client
  * @param powerAuthSDK Power Auth instance for request signing
  * @param gsonBuilder Builder that will be used for request/response (de)serialization.
+ * @param appContext Application context. The library internally uses [Context.getApplicationContext]
+ * to avoid holding a reference to an Activity or other short-lived context.
  * @param tokenProvider Token provided for token signing.
  * @param userAgent Default user agent for each request. Note that such value might be "overridden"
  * on per-request basis. Default value is `libraryDefault`.
@@ -74,10 +76,13 @@ abstract class Api(
     okHttpClient: OkHttpClient,
     @PublishedApi internal val powerAuthSDK: PowerAuthSDK,
     @PublishedApi internal val gsonBuilder: GsonBuilder,
-    @PublishedApi internal val appContext: Context,
+    appContext: Context,
     tokenProvider: IPowerAuthTokenProvider? = null,
     @PublishedApi internal val userAgent: UserAgent = UserAgent.libraryDefault(appContext)
 ) {
+
+    @PublishedApi internal val appContext: Context = appContext.applicationContext
+
     /**
      * Language sent in request header. Default value is "en".
      */
