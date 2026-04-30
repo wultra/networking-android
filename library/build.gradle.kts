@@ -34,6 +34,8 @@ android {
 
         configIntField("VERSION_CODE", 1)
         configStringField("VERSION_NAME", properties["VERSION_NAME"] as String)
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
