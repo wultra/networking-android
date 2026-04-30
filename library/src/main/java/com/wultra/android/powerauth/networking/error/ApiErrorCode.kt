@@ -16,6 +16,8 @@
 
 package com.wultra.android.powerauth.networking.error
 
+import kotlin.enums.enumEntries
+
 /**
  * Error codes denoting known API errors.
  */
@@ -131,11 +133,7 @@ enum class ApiErrorCode(val message: String) {
     REMOTE_COMMUNICATION_ERROR("REMOTE_COMMUNICATION_ERROR");
 
     companion object {
-        private val map = mutableMapOf<String, ApiErrorCode>()
-
-        init {
-            values().forEach { ec -> map[ec.message] = ec }
-        }
+        private val map = entries.associateBy { it.message }
 
         /**
          * Decodes the code into the [ApiErrorCode].
