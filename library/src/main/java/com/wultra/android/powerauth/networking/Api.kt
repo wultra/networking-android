@@ -81,6 +81,7 @@ abstract class Api(
     /**
      * Language sent in request header. Default value is "en".
      */
+    @Volatile
     var acceptLanguage = "en"
 
     @PublishedApi internal val okHttpClient: OkHttpClient
