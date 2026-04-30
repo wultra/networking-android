@@ -50,7 +50,7 @@ class WPNLogger {
          *
          * Default headers to skip are:
          * ```
-         * "accept-language", "content-type", "content-length", "accept-language", "transfer-encoding", "date", "server", "user-agent",
+         * "accept-language", "content-type", "content-length", "transfer-encoding", "date", "server", "user-agent",
          * "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
          * ```
          */
@@ -181,14 +181,14 @@ class WPNLogger {
  *
  * Default headers to skip are:
  * ```
- * "accept-language", "content-type", "content-length", "accept-language", "transfer-encoding", "date", "server", "user-agent",
+ * "accept-language", "content-type", "content-length", "transfer-encoding", "date", "server", "user-agent",
  * "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
  * ```
  */
 class HeaderBlockList {
 
     private val headersToSkp = mutableListOf(
-        "accept-language", "content-type", "content-length", "accept-language", "transfer-encoding", "date", "server", "user-agent",
+        "accept-language", "content-type", "content-length", "transfer-encoding", "date", "server", "user-agent",
         "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
     )
 
