@@ -68,9 +68,9 @@ android {
 dependencies {
     // Bundled
     implementation("org.jetbrains.kotlin:kotlin-stdlib:${Constants.BuildScript.kotlinVersion}")
-    implementation("androidx.annotation:annotation:1.8.2")
+    implementation("androidx.annotation:annotation:1.10.0")
     implementation("com.google.code.gson:gson:2.14.0")
-    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Dependencies
     compileOnly("com.wultra.android.powerauth:powerauth-sdk:1.9.6")
