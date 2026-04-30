@@ -259,16 +259,17 @@ abstract class Api(
                     override fun onResponse(call: Call, response: Response) {
                         try {
                             if (response.isSuccessful) {
-
+                                val responseBody = response.body
+                                    ?: throw IOException("Response body is null")
                                 val resData = if (encryptor != null) {
-                                    val envelope = Gson().fromJson(response.body!!.string(), E2EEResponse::class.java)
+                                    val envelope = Gson().fromJson(responseBody.string(), E2EEResponse::class.java)
                                     val decrypted = encryptor.decryptResponse(envelope.toCryptogram())
                                     okHttpClient.interceptors.mapNotNull { it as? ECIESInterceptor }.forEach {
                                         it.encryptedResponseReceived(request.url.toUrl(), decrypted)
                                     }
                                     decrypted
                                 } else {
-                                    response.body!!.bytes()
+                                    responseBody.bytes()
                                 }
 
                                 val gson = gsonBuilder.create()
@@ -279,7 +280,7 @@ abstract class Api(
                                 val gson = gsonBuilder.create()
                                 val typeAdapter = getTypeAdapter<ErrorResponse>(gson)
                                 val converter = GsonResponseBodyConverter(gson, typeAdapter)
-                                val errorResponse = converter.convert(response.body!!)
+                                val errorResponse = response.body?.let { converter.convert(it) }
                                 listener.onFailure(ApiError(ApiHttpException(response, errorResponse)))
                             }
                         } catch (e: Throwable) {
@@ -328,18 +329,23 @@ interface OkHttpBuilderInterceptor {
 class UserAgent internal constructor(@PublishedApi internal val value: String? = null) {
     companion object {
         fun libraryDefault(appContext: Context): UserAgent {
-            val appInfo = AppUtils.getMyPackageBasicInfo(appContext)
-            val product = "PowerAuthNetworking"
-            val sdkVer = BuildConfig.VERSION_NAME
-            val appVer = appInfo.versionName
-            val appId = appInfo.packageName
-            val lang = appContext.getCurrentLocale().language // we use here only language to fit iOS implementation
-            val maker = Build.BRAND
-            val os = "Android"
-            val osVer = Build.VERSION.RELEASE
-            val model = Build.MODEL
-            val network = ConnectionMonitor.getConnectivityStatus(appContext)
-            return UserAgent("$product/$sdkVer ($lang; $network) $appId/$appVer ($maker; $os/$osVer; $model)")
+            return try {
+                val appInfo = AppUtils.getMyPackageBasicInfo(appContext)
+                val product = "PowerAuthNetworking"
+                val sdkVer = BuildConfig.VERSION_NAME
+                val appVer = appInfo.versionName
+                val appId = appInfo.packageName
+                val lang = appContext.getCurrentLocale().language // we use here only language to fit iOS implementation
+                val maker = Build.BRAND
+                val os = "Android"
+                val osVer = Build.VERSION.RELEASE
+                val model = Build.MODEL
+                val network = ConnectionMonitor.getConnectivityStatus(appContext)
+                UserAgent("$product/$sdkVer ($lang; $network) $appId/$appVer ($maker; $os/$osVer; $model)")
+            } catch (t: Throwable) {
+                WPNLogger.e("Failed to construct library default User-Agent: $t")
+                UserAgent("PowerAuthNetworking/${BuildConfig.VERSION_NAME}")
+            }
         }
 
         fun systemDefault() = UserAgent()
