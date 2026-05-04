@@ -191,10 +191,12 @@ class WPNLogger {
  */
 class HeaderBlockList {
 
-    private val headersToSkip = CopyOnWriteArrayList(listOf(
-        "accept-language", "content-type", "content-length", "transfer-encoding", "date", "server", "user-agent",
-        "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
-    ))
+    private val headersToSkip = CopyOnWriteArrayList(
+        listOf(
+            "accept-language", "content-type", "content-length", "transfer-encoding", "date", "server", "user-agent",
+            "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
+        )
+    )
 
     fun add(element: String): Boolean {
         return headersToSkip.add(element.lowercase())

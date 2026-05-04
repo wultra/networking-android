@@ -33,4 +33,3 @@ object AppUtils {
         return appContext.packageManager.getPackageInfo(appContext.packageName, flags)
     }
 }
-
