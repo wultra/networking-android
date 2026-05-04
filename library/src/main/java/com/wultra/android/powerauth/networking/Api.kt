@@ -263,35 +263,39 @@ abstract class Api(
                     }
 
                     override fun onResponse(call: Call, response: Response) {
-                        try {
-                            if (response.isSuccessful) {
-                                val responseBody = response.body
-                                    ?: throw IOException("Response body is null")
-                                val resData = if (encryptor != null) {
-                                    val envelope = Gson().fromJson(responseBody.string(), E2EEResponse::class.java)
-                                    val decrypted = encryptor.decryptResponse(envelope.toCryptogram())
-                                    okHttpClient.interceptors.mapNotNull { it as? ECIESInterceptor }.forEach {
-                                        it.encryptedResponseReceived(request.url.toUrl(), decrypted)
+                        response.use {
+                            try {
+                                if (response.isSuccessful) {
+                                    val responseBody = response.body
+                                        ?: throw IOException("Response body is null")
+                                    val resData = if (encryptor != null) {
+                                        val envelope = Gson().fromJson(responseBody.string(), E2EEResponse::class.java)
+                                        val decrypted = encryptor.decryptResponse(envelope.toCryptogram())
+                                        okHttpClient.interceptors.mapNotNull { it as? ECIESInterceptor }.forEach {
+                                            it.encryptedResponseReceived(request.url.toUrl(), decrypted)
+                                        }
+                                        decrypted
+                                    } else {
+                                        responseBody.bytes()
                                     }
-                                    decrypted
-                                } else {
-                                    responseBody.bytes()
-                                }
 
-                                val gson = gsonBuilder.create()
-                                val typeAdapter = getTypeAdapter<TResponseData>(gson)
-                                val converter = GsonResponseBodyConverter(gson, typeAdapter)
-                                listener.onSuccess(converter.convert(resData))
-                            } else {
-                                val gson = gsonBuilder.create()
-                                val typeAdapter = getTypeAdapter<ErrorResponse>(gson)
-                                val converter = GsonResponseBodyConverter(gson, typeAdapter)
-                                val errorResponse = response.body?.let { converter.convert(it) }
-                                listener.onFailure(ApiError(ApiHttpException(response, errorResponse)))
+                                    val gson = gsonBuilder.create()
+                                    val typeAdapter = getTypeAdapter<TResponseData>(gson)
+                                    val converter = GsonResponseBodyConverter(gson, typeAdapter)
+                                    listener.onSuccess(converter.convert(resData))
+                                } else {
+                                    val bodyBytes = response.body?.bytes()
+                                    val errorResponse = bodyBytes?.let {
+                                        val gson = gsonBuilder.create()
+                                        val typeAdapter = getTypeAdapter<ErrorResponse>(gson)
+                                        GsonResponseBodyConverter(gson, typeAdapter).convert(it)
+                                    }
+                                    listener.onFailure(ApiError(ApiHttpException(response, errorResponse)))
+                                }
+                            } catch (e: Throwable) {
+                                // do not allow the app to crash when unexpected body is returned
+                                listener.onFailure(ApiError(ApiHttpException(response, errorResponse = null, cause = e)))
                             }
-                        } catch (e: Throwable) {
-                            // do not allow the app to crash when unexpected body is returned
-                            listener.onFailure(ApiError(ApiHttpException(response, errorResponse = null, cause = e)))
                         }
                     }
                 })
