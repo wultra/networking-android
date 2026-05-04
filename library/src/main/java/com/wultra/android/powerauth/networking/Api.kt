@@ -14,8 +14,6 @@
  * and limitations under the License.
  */
 
-@file:Suppress("unused")
-
 package com.wultra.android.powerauth.networking
 
 import android.content.Context
@@ -104,18 +102,18 @@ abstract class Api(
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
         data: TRequestData,
         endpoint: EndpointBasic<TRequestData, TResponseData>,
-        headers: HashMap<String, String>? = null,
+        headers: Map<String, String>? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
-        makeCall(getBodyBytes(data), endpoint, headers ?: hashMapOf(), okHttpInterceptor, listener)
+        makeCall(getBodyBytes(data), endpoint, HashMap(headers.orEmpty()), okHttpInterceptor, listener)
     }
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
         data: TRequestData,
         endpoint: EndpointSigned<TRequestData, TResponseData>,
         authentication: PowerAuthAuthentication,
-        headers: HashMap<String, String>? = null,
+        headers: Map<String, String>? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
@@ -130,7 +128,7 @@ abstract class Api(
             bodyBytes
         )
 
-        val newHeaders = headers ?: hashMapOf()
+        val newHeaders = HashMap(headers.orEmpty())
         newHeaders[authorizationHeader.key] = authorizationHeader.value
 
         makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
@@ -139,7 +137,7 @@ abstract class Api(
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
         data: TRequestData,
         endpoint: EndpointSignedWithToken<TRequestData, TResponseData>,
-        headers: HashMap<String, String>? = null,
+        headers: Map<String, String>? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
@@ -154,7 +152,7 @@ abstract class Api(
 
                             val tokenHeader = token.generateHeader()
                             val bodyBytes = getBodyBytes(data)
-                            val newHeaders = headers ?: hashMapOf()
+                            val newHeaders = HashMap(headers.orEmpty())
                             newHeaders[tokenHeader.key] = tokenHeader.value
 
                             makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
@@ -333,7 +331,7 @@ abstract class Api(
 }
 
 interface OkHttpBuilderInterceptor {
-    fun intercept(builder: Builder)
+    fun intercept(builder: OkHttpClient.Builder)
 }
 
 class UserAgent internal constructor(@PublishedApi internal val value: String? = null) {
