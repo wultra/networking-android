@@ -47,7 +47,6 @@ import io.getlime.security.powerauth.sdk.PowerAuthSDK
 import io.getlime.security.powerauth.sdk.PowerAuthToken
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.OkHttpClient.Builder
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 
