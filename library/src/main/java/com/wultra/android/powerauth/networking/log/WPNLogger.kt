@@ -7,7 +7,6 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import okio.Buffer
-import java.lang.StringBuilder
 import java.net.URL
 import java.util.concurrent.CopyOnWriteArrayList
 
