@@ -101,7 +101,7 @@ abstract class Api(
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
         data: TRequestData,
         endpoint: EndpointBasic<TRequestData, TResponseData>,
-        headers: Map<String, String>? = null,
+        headers: HashMap<String, String>? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
@@ -112,7 +112,7 @@ abstract class Api(
         data: TRequestData,
         endpoint: EndpointSigned<TRequestData, TResponseData>,
         authentication: PowerAuthAuthentication,
-        headers: Map<String, String>? = null,
+        headers: HashMap<String, String>? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
@@ -136,7 +136,7 @@ abstract class Api(
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
         data: TRequestData,
         endpoint: EndpointSignedWithToken<TRequestData, TResponseData>,
-        headers: Map<String, String>? = null,
+        headers: HashMap<String, String>? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {

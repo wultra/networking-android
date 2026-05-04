@@ -21,7 +21,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
 
-object AppUtils {
+internal object AppUtils {
     @Throws(PackageManager.NameNotFoundException::class)
     internal fun getMyPackageBasicInfo(appContext: Context): PackageInfo {
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
