@@ -1,6 +1,4 @@
-plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
-}/*
+/*
  * Copyright 2020 Wultra s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,5 +13,9 @@ plugins {
  * See the License for the specific language governing permissions
  * and limitations under the License.
  */
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
+}
 
 include ':library'

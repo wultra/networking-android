@@ -1,5 +1,3 @@
-package com.wultra.android.powerauth.networking.utils
-
 /*
  * Copyright 2026 Wultra s.r.o.
  *
@@ -15,6 +13,8 @@ package com.wultra.android.powerauth.networking.utils
  * See the License for the specific language governing permissions
  * and limitations under the License.
  */
+
+package com.wultra.android.powerauth.networking.utils
 
 import android.content.Context
 import android.net.ConnectivityManager

@@ -16,8 +16,6 @@
 
 package com.wultra.android.powerauth.networking.error
 
-import kotlin.enums.enumEntries
-
 /**
  * Error codes denoting known API errors.
  */

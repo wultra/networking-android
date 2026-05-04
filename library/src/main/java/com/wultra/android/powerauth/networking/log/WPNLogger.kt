@@ -39,7 +39,7 @@ class WPNLogger {
         @Volatile
         @JvmStatic var verboseLevel = VerboseLevel.WARNING
 
-        /** Listener that can tap into the log stream and process it on it's own. */
+        /** Listener that can tap into the log stream and process it on its own. */
         @Volatile
         @JvmStatic var logListener: WPNLogListener? = null
 

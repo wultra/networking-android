@@ -65,7 +65,7 @@ interface IApiCallResponseListener<T> {
  * @param okHttpClient Configured Http Client
  * @param powerAuthSDK Power Auth instance for request signing
  * @param gsonBuilder Builder that will be used for request/response (de)serialization.
- * @param appContext Application context. The library internally uses [Context.getApplicationContext]
+ * @param appContext Application context. The library internally uses [Context.applicationContext]
  * to avoid holding a reference to an Activity or other short-lived context.
  * @param tokenProvider Token provided for token signing.
  * @param userAgent Default user agent for each request. Note that such value might be "overridden"
