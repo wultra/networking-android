@@ -21,18 +21,16 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
 
-class AppUtils {
-    companion object {
-        @Throws(PackageManager.NameNotFoundException::class)
-        internal fun getMyPackageBasicInfo(appContext: Context): PackageInfo {
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                PackageManager.GET_SIGNING_CERTIFICATES
-            } else {
-                @Suppress("DEPRECATION")
-                PackageManager.GET_SIGNATURES
-            }
-            return appContext.packageManager.getPackageInfo(appContext.packageName, flags)
+object AppUtils {
+    @Throws(PackageManager.NameNotFoundException::class)
+    internal fun getMyPackageBasicInfo(appContext: Context): PackageInfo {
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            @Suppress("DEPRECATION")
+            PackageManager.GET_SIGNATURES
         }
+        return appContext.packageManager.getPackageInfo(appContext.packageName, flags)
     }
 }
 
