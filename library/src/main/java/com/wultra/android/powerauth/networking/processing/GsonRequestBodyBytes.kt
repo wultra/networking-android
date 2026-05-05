@@ -22,7 +22,6 @@ import com.wultra.android.powerauth.networking.log.WPNLogger
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStreamWriter
-import java.nio.charset.Charset
 
 /**
  * GSON converter for serializing data to bytes.
@@ -36,18 +35,15 @@ internal class GsonRequestBodyBytes<T>(private val gson: Gson, private val adapt
     fun convert(value: T): ByteArray {
         try {
             val outputStream = ByteArrayOutputStream()
-            val writer = OutputStreamWriter(outputStream, UTF_8)
-            gson.newJsonWriter(writer).use {
-                adapter.write(it, value)
+            OutputStreamWriter(outputStream, Charsets.UTF_8).use { writer ->
+                gson.newJsonWriter(writer).use { jsonWriter ->
+                    adapter.write(jsonWriter, value)
+                }
             }
             return outputStream.toByteArray()
         } catch (t: Throwable) {
             WPNLogger.e("Failed to process request: $t")
             throw t
         }
-    }
-
-    companion object {
-        private val UTF_8 = Charset.forName("UTF-8")
     }
 }

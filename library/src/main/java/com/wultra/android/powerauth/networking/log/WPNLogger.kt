@@ -7,8 +7,8 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
 import okio.Buffer
-import java.lang.StringBuilder
 import java.net.URL
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Logger provides simple logging facility.
@@ -35,12 +35,15 @@ class WPNLogger {
     companion object {
 
         /** Current verbose level. */
+        @Volatile
         @JvmStatic var verboseLevel = VerboseLevel.WARNING
 
-        /** Listener that can tap into the log stream and process it on it's own. */
+        /** Listener that can tap into the log stream and process it on its own. */
+        @Volatile
         @JvmStatic var logListener: WPNLogListener? = null
 
         /** If HTTP traffic should be logged. */
+        @Volatile
         @JvmStatic var logHttpTraffic = true
 
         /**
@@ -50,7 +53,7 @@ class WPNLogger {
          *
          * Default headers to skip are:
          * ```
-         * "accept-language", "content-type", "content-length", "accept-language", "transfer-encoding", "date", "server", "user-agent",
+         * "accept-language", "content-type", "content-length", "transfer-encoding", "date", "server", "user-agent",
          * "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
          * ```
          */
@@ -178,37 +181,40 @@ class WPNLogger {
  * Headers to skip when logging.
  *
  * Note that all headers are transformed to lowercase variant when added.
+ * This class is thread safe.
  *
  * Default headers to skip are:
  * ```
- * "accept-language", "content-type", "content-length", "accept-language", "transfer-encoding", "date", "server", "user-agent",
+ * "accept-language", "content-type", "content-length", "transfer-encoding", "date", "server", "user-agent",
  * "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
  * ```
  */
 class HeaderBlockList {
 
-    private val headersToSkp = mutableListOf(
-        "accept-language", "content-type", "content-length", "accept-language", "transfer-encoding", "date", "server", "user-agent",
-        "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
+    private val headersToSkip = CopyOnWriteArrayList(
+        listOf(
+            "accept-language", "content-type", "content-length", "transfer-encoding", "date", "server", "user-agent",
+            "connection", "x-content-type-options", "x-xss-protection", "cache-control", "pragma", "expires", "x-frame-options", "vary"
+        )
     )
 
     fun add(element: String): Boolean {
-        return headersToSkp.add(element.lowercase())
+        return headersToSkip.add(element.lowercase())
     }
 
     fun addAll(elements: Collection<String>): Boolean {
-        return headersToSkp.addAll(elements.map { it.lowercase() })
+        return headersToSkip.addAll(elements.map { it.lowercase() })
     }
 
     fun remove(element: String): Boolean {
-        return headersToSkp.remove(element.lowercase())
+        return headersToSkip.remove(element.lowercase())
     }
 
     fun removeAll(elements: Collection<String>): Boolean {
-        return headersToSkp.removeAll(elements.map { it.lowercase() }.toSet())
+        return headersToSkip.removeAll(elements.map { it.lowercase() }.toSet())
     }
 
-    fun toList() = headersToSkp.toList()
+    fun toList(): List<String> = headersToSkip.toList()
 }
 
 private fun Headers.forLog(skip: List<String>): String {

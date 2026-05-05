@@ -27,9 +27,11 @@ import io.getlime.security.powerauth.sdk.PowerAuthTokenStore
  * Default internal implementation of [IPowerAuthTokenProvider]
  */
 internal class TokenManager(
-    private val appContext: Context,
+    appContext: Context,
     private val powerAuthTokenStore: PowerAuthTokenStore
 ) : IPowerAuthTokenProvider {
+
+    private val appContext: Context = appContext.applicationContext
 
     override fun getTokenAsync(tokenName: String, listener: IPowerAuthTokenListener) {
         val localPowerAuthToken = powerAuthTokenStore.getLocalToken(appContext, tokenName)

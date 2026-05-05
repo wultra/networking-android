@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Wultra s.r.o.
+ * Copyright 2022 Wultra s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,19 @@
  * and limitations under the License.
  */
 
-plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
-}
+package com.wultra.android.powerauth.networking.utils
 
-include ':library'
+import android.content.Context
+import android.os.Build
+import java.util.Locale
+
+/**
+ * Get currently selected locale.
+ */
+fun Context.getCurrentLocale(): Locale {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        this.resources.configuration.locales.get(0)
+    } else {
+        this.resources.configuration.locale
+    }
+}

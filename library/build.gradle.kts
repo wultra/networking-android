@@ -34,6 +34,8 @@ android {
 
         configIntField("VERSION_CODE", 1)
         configStringField("VERSION_NAME", properties["VERSION_NAME"] as String)
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -66,12 +68,11 @@ android {
 dependencies {
     // Bundled
     implementation("org.jetbrains.kotlin:kotlin-stdlib:${Constants.BuildScript.kotlinVersion}")
-    implementation("androidx.annotation:annotation:1.8.2")
-    implementation("com.google.code.gson:gson:2.11.0")
-    implementation("com.jakewharton.threetenabp:threetenabp:1.1.1")
-    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("androidx.annotation:annotation:1.10.0")
+    implementation("com.google.code.gson:gson:2.14.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Dependencies
-    compileOnly("com.wultra.android.powerauth:powerauth-sdk:1.9.2")
-    compileOnly("io.getlime.core:rest-model-base:1.2.0")
+    compileOnly("com.wultra.android.powerauth:powerauth-sdk:1.9.6")
+    compileOnly("io.getlime.core:rest-model-base:1.12.0")
 }
