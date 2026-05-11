@@ -19,11 +19,7 @@ package com.wultra.android.powerauth.networking
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.google.gson.GsonBuilder
-import com.google.gson.annotations.SerializedName
 import com.wultra.android.powerauth.networking.data.BaseRequest
-import com.wultra.android.powerauth.networking.data.ObjectRequest
-import com.wultra.android.powerauth.networking.data.ObjectResponse
 import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.error.ApiError
 import com.wultra.android.powerauth.networking.error.ApiHttpException
@@ -290,13 +286,15 @@ class PostIntegrationTest {
             MockResponse()
                 .setResponseCode(400)
                 .setHeader("Content-Type", "application/json")
-                .setBody("""{
+                .setBody(
+                    """{
                     "status": "ERROR",
                     "responseObject": {
                         "code": "INVALID_REQUEST",
                         "message": "Bad request"
                     }
-                }""")
+                }"""
+                )
         )
 
         val latch = CountDownLatch(1)
@@ -440,13 +438,15 @@ class PostIntegrationTest {
             MockResponse()
                 .setResponseCode(401)
                 .setHeader("Content-Type", "application/json")
-                .setBody("""{
-                    "status": "ERROR",
-                    "responseObject": {
-                        "code": "POWERAUTH_AUTH_FAIL",
-                        "message": "Authentication failed"
-                    }
-                }""")
+                .setBody(
+                    """{
+                        "status": "ERROR",
+                        "responseObject": {
+                            "code": "POWERAUTH_AUTH_FAIL",
+                            "message": "Authentication failed"
+                        }
+                    }"""
+                )
         )
 
         val latch = CountDownLatch(1)

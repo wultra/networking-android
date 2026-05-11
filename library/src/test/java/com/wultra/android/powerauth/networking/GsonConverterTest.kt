@@ -22,7 +22,6 @@ import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.ObjectRequest
-import com.wultra.android.powerauth.networking.data.ObjectResponse
 import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.processing.GsonRequestBodyBytes
 import com.wultra.android.powerauth.networking.processing.GsonResponseBodyConverter
@@ -46,10 +45,10 @@ class GsonConverterTest {
 
     class TestObjectRequest(payload: Payload) : ObjectRequest<Payload>(payload)
 
-    class TestObjectResponse(
-        @SerializedName("responseObject") val payload: Payload?,
-        status: StatusResponse.Status
-    ) : ObjectResponse<Payload?>(payload, status)
+    data class TestObjectResponse(
+        @SerializedName("status") val status: StatusResponse.Status? = null,
+        @SerializedName("responseObject") val payload: Payload? = null
+    )
 
     // --- GsonRequestBodyBytes tests ---
 
@@ -72,6 +71,7 @@ class GsonConverterTest {
 
         // Verify the JSON contains requestObject wrapper
         val parsed = gson.fromJson(json, Map::class.java)
+
         @Suppress("UNCHECKED_CAST")
         val requestObject = parsed["requestObject"] as? Map<String, Any>
         assertNotNull("Should contain requestObject", requestObject)
@@ -142,6 +142,7 @@ class GsonConverterTest {
         // Deserialize the request bytes and verify the payload
         val json = String(bytes, Charsets.UTF_8)
         val parsed = gson.fromJson(json, Map::class.java)
+
         @Suppress("UNCHECKED_CAST")
         val requestObject = parsed["requestObject"] as Map<String, Any>
         assertEquals("round-trip", requestObject["value"])

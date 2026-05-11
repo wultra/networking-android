@@ -16,7 +16,6 @@
 
 package com.wultra.android.powerauth.networking
 
-import com.google.gson.annotations.SerializedName
 import com.wultra.android.powerauth.networking.error.ApiErrorCode
 import com.wultra.android.powerauth.networking.error.ErrorResponseObject
 import org.junit.Assert.assertEquals
