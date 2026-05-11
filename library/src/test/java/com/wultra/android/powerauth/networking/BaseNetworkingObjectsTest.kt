@@ -21,6 +21,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.ObjectRequest
+import com.wultra.android.powerauth.networking.data.ObjectResponse
 import com.wultra.android.powerauth.networking.data.StatusResponse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -43,10 +44,10 @@ class BaseNetworkingObjectsTest {
 
     class PayloadRequest(payload: Payload) : ObjectRequest<Payload>(payload)
 
-    data class PayloadResponse(
-        @SerializedName("status") val status: StatusResponse.Status? = null,
-        @SerializedName("responseObject") val payload: Payload? = null
-    )
+    class PayloadResponse(
+        responseObject: Payload?,
+        status: Status
+    ) : ObjectResponse<Payload?>(responseObject, status)
 
     // --- Request tests ---
 
@@ -99,8 +100,8 @@ class BaseNetworkingObjectsTest {
         val response = gson.fromJson(json, PayloadResponse::class.java)
 
         assertEquals(StatusResponse.Status.OK, response.status)
-        assertNotNull(response.payload)
-        assertEquals("hello", response.payload!!.value)
+        assertNotNull(response.responseObject)
+        assertEquals("hello", response.responseObject!!.value)
     }
 
     @Test
@@ -109,7 +110,7 @@ class BaseNetworkingObjectsTest {
         val response = gson.fromJson(json, PayloadResponse::class.java)
 
         assertEquals(StatusResponse.Status.ERROR, response.status)
-        assertNull(response.payload)
+        assertNull(response.responseObject)
     }
 
     @Test
@@ -118,7 +119,7 @@ class BaseNetworkingObjectsTest {
         val response = gson.fromJson(json, PayloadResponse::class.java)
 
         assertEquals(StatusResponse.Status.OK, response.status)
-        assertNull(response.payload)
+        assertNull(response.responseObject)
     }
 
     // --- Error response tests ---
