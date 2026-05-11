@@ -57,6 +57,10 @@ android {
         unitTests.isReturnDefaultValues = true
     }
 
+    packaging {
+        resources.excludes.add("META-INF/versions/9/OSGI-INF/MANIFEST.MF")
+    }
+
     // Custom ktlint script
     tasks.register("ktlint") {
         logger.lifecycle("ktlint")
