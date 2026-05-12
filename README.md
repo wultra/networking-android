@@ -55,6 +55,7 @@ implementation "com.wultra.android.powerauth:powerauth-networking:1.x.y"
 
 | WPN SDK           | PowerAuth SDK |  
 |-------------------|---------------|
+| `2.0.x`           | `2.0.x`       |
 | `1.5.x`           | `1.9.x`       |
 | `1.4.x`           | `1.8.x`       |
 | `1.3.x`           | `1.8.x`       |
@@ -317,9 +318,15 @@ Log listener comes in handy when you want to log into a file or some online serv
 
 ## Changelog
 
-### TBA
+### 2.0.0
 
-- Time is now always synchronized when creating token-based authorization headers
+- Upgraded PowerAuth SDK to `2.0.0`
+- Updated request signing and E2EE encryption/decryption to match PowerAuth SDK 2.0 APIs (`CoreEncryptor` replaces `EciesEncryptor`)
+- Improved error handling — signing and encryption failures are now properly reported via `onFailure` callback
+
+### 1.5.1
+
+- Fixed time synchronization for token-based authorization headers
 
 ### 1.5.0
 
@@ -331,6 +338,7 @@ Log listener comes in handy when you want to log into a file or some online serv
 - Logging improvements
 
 ### 1.3.1
+
 - Added new `ApiErrorCodes`
 - Update targetSdk to `33`; updated dependencies
 - Update AGP to `8.1.4`
@@ -339,6 +347,7 @@ Log listener comes in handy when you want to log into a file or some online serv
 - Introduced this documentation
 
 ### 1.3.0
+
 - Upgrade PowerAuth SDK to `1.8.0`
 
 <!-- begin remove -->

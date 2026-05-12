@@ -33,6 +33,7 @@ allprojects {
         mavenCentral()
         google()
         mavenLocal()
+        maven(url = "https://central.sonatype.com/repository/maven-snapshots/")
     }
 }
 
