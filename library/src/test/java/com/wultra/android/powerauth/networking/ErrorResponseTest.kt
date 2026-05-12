@@ -18,7 +18,6 @@ package com.wultra.android.powerauth.networking
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import com.google.gson.annotations.SerializedName
 import com.wultra.android.powerauth.networking.error.ErrorResponse
 import com.wultra.android.powerauth.networking.error.ErrorResponseObject
 import com.wultra.android.powerauth.networking.error.ApiErrorCode
@@ -119,9 +118,10 @@ class ErrorResponseTest {
         val okResponse = buildOkHttpResponse(403, "Forbidden")
         val exception = ApiHttpException(okResponse)
 
-        // The exception message should contain HTTP code and message
-        assertNotNull(exception.message)
-        assert(exception.toString().contains("403")) { "Should contain status code" }
+        // The exception message is the HTTP response message
+        assertEquals("Forbidden", exception.message)
+        // The code is accessible separately
+        assertEquals(403, exception.code)
     }
 
     private fun buildOkHttpResponse(code: Int, message: String): Response {

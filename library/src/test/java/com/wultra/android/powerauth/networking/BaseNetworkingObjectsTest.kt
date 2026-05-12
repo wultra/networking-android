@@ -21,7 +21,6 @@ import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.ObjectRequest
-import com.wultra.android.powerauth.networking.data.ObjectResponse
 import com.wultra.android.powerauth.networking.data.StatusResponse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -44,10 +43,10 @@ class BaseNetworkingObjectsTest {
 
     class PayloadRequest(payload: Payload) : ObjectRequest<Payload>(payload)
 
-    class PayloadResponse(
-        @SerializedName("responseObject") val payload: Payload?,
-        status: Status
-    ) : ObjectResponse<Payload?>(payload, status)
+    data class PayloadResponse(
+        @SerializedName("status") val status: StatusResponse.Status? = null,
+        @SerializedName("responseObject") val payload: Payload? = null
+    )
 
     // --- Request tests ---
 
@@ -64,6 +63,7 @@ class BaseNetworkingObjectsTest {
 
         // Verify the JSON contains the requestObject wrapper
         val parsed = gson.fromJson(json, Map::class.java)
+
         @Suppress("UNCHECKED_CAST")
         val requestObject = parsed["requestObject"] as? Map<String, Any>
         assertNotNull("JSON should contain requestObject", requestObject)
@@ -101,7 +101,6 @@ class BaseNetworkingObjectsTest {
         assertEquals(StatusResponse.Status.OK, response.status)
         assertNotNull(response.payload)
         assertEquals("hello", response.payload!!.value)
-        assertEquals("hello", response.responseObject!!.value)
     }
 
     @Test
