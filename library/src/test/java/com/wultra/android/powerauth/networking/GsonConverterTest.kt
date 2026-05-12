@@ -27,6 +27,7 @@ import com.wultra.android.powerauth.networking.processing.GsonRequestBodyBytes
 import com.wultra.android.powerauth.networking.processing.GsonResponseBodyConverter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -85,7 +86,7 @@ class GsonConverterTest {
         val request = TestObjectRequest(Payload("héllo wörld ñ"))
         val bytes = converter.convert(request)
         val json = String(bytes, Charsets.UTF_8)
-        assert(json.contains("héllo wörld ñ")) { "Should preserve Unicode characters" }
+        assertTrue("Should preserve Unicode characters", json.contains("héllo wörld ñ"))
     }
 
     // --- GsonResponseBodyConverter tests ---

@@ -25,6 +25,7 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -90,7 +91,7 @@ class BaseNetworkingObjectsTest {
     fun `StatusResponse serializes back to JSON`() {
         val response = StatusResponse(StatusResponse.Status.OK)
         val json = gson.toJson(response)
-        assert(json.contains("\"OK\"")) { "Serialized JSON should contain OK status" }
+        assertTrue("Serialized JSON should contain OK status", json.contains("\"OK\""))
     }
 
     @Test
