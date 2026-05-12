@@ -117,7 +117,7 @@ abstract class Api(
     ) {
 
         val bodyBytes = getBodyBytes(data)
-        val newHeaders = headers ?: hashMapOf()
+        val newHeaders = HashMap(headers.orEmpty())
 
         try {
             val authorizationHeader = powerAuthSDK.authenticationHeaderForRequestWithBody(
