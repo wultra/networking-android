@@ -21,9 +21,7 @@ import android.os.Build
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.TypeAdapter
-import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
-import com.wultra.android.powerauth.BuildConfig
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.error.ApiError
@@ -38,9 +36,10 @@ import com.wultra.android.powerauth.networking.tokens.TokenManager
 import com.wultra.android.powerauth.networking.utils.AppUtils
 import com.wultra.android.powerauth.networking.utils.ConnectionMonitor
 import com.wultra.android.powerauth.networking.utils.getCurrentLocale
-import io.getlime.security.powerauth.core.EciesCryptogram
-import io.getlime.security.powerauth.core.EciesEncryptor
-import io.getlime.security.powerauth.networking.response.IGetEciesEncryptorListener
+import com.wultra.android.powerauth.BuildConfig
+import io.getlime.security.powerauth.core.CoreEncryptedResponse
+import io.getlime.security.powerauth.core.CoreEncryptor
+import io.getlime.security.powerauth.networking.response.IGetEncryptorListener
 import io.getlime.security.powerauth.networking.response.ITimeSynchronizationListener
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import io.getlime.security.powerauth.sdk.PowerAuthSDK
@@ -118,17 +117,20 @@ abstract class Api(
     ) {
 
         val bodyBytes = getBodyBytes(data)
+        val newHeaders = headers ?: hashMapOf()
 
-        val authorizationHeader = powerAuthSDK.requestSignatureWithAuthentication(
-            appContext,
-            authentication,
-            "POST",
-            endpoint.uriId,
-            bodyBytes
-        )
-
-        val newHeaders = HashMap(headers.orEmpty())
-        newHeaders[authorizationHeader.key] = authorizationHeader.value
+        try {
+            val authorizationHeader = powerAuthSDK.authenticationHeaderForRequestWithBody(
+                authentication,
+                "POST",
+                endpoint.uriId,
+                bodyBytes
+            )
+            newHeaders[authorizationHeader.key] = authorizationHeader.value
+        } catch (e: Exception) {
+            listener.onFailure(ApiError(e))
+            return
+        }
 
         makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
     }
@@ -141,7 +143,7 @@ abstract class Api(
         listener: IApiCallResponseListener<TResponseData>
     ) {
         // note: remove time synchronization from here after the https://github.com/wultra/networking-android/issues/67 is implemented
-        // then, use powerAuthTokenStore.generateAuthorizationHeader.
+        // then, use powerAuthTokenStore.generateAuthenticationHeader.
         synchronizeTime {
             it.onSuccess {
                 tokenProvider.getTokenAsync(
@@ -149,10 +151,16 @@ abstract class Api(
                     object : IPowerAuthTokenListener {
                         override fun onReceived(token: PowerAuthToken) {
 
-                            val tokenHeader = token.generateHeader()
                             val bodyBytes = getBodyBytes(data)
                             val newHeaders = HashMap(headers.orEmpty())
-                            newHeaders[tokenHeader.key] = tokenHeader.value
+
+                            try {
+                                val tokenHeader = token.generateTokenHeader()
+                                newHeaders[tokenHeader.key] = tokenHeader.value
+                            } catch (e: Exception) {
+                                listener.onFailure(ApiError(e))
+                                return
+                            }
 
                             makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
                         }
@@ -213,20 +221,17 @@ abstract class Api(
                 listener.onFailure(ApiError(it))
             }.onSuccess { encryptor ->
                 if (encryptor != null) {
-                    val cryptogram = encryptor.encryptRequest(bodyBytes)
-                    if (cryptogram != null) {
-                        val e2eePayload = E2EERequest(
-                            cryptogram.temporaryKeyId,
-                            cryptogram.keyBase64,
-                            cryptogram.bodyBase64,
-                            cryptogram.macBase64,
-                            cryptogram.nonceBase64,
-                            cryptogram.timestamp
-                        )
-                        bytes = Gson().toJson(e2eePayload).encodeToByteArray()
+                    try {
+                        val encryptedRequest = encryptor.encryptRequest(bytes)
+                        bytes = encryptedRequest.requestBody
                         if (endpoint is EndpointBasic || endpoint is EndpointSignedWithToken) {
-                            headers[encryptor.metadata.httpHeaderKey] = encryptor.metadata.httpHeaderValue
+                            encryptedRequest.requestHeaders.forEach { header ->
+                                headers[header.key] = header.value
+                            }
                         }
+                    } catch (e: Exception) {
+                        listener.onFailure(ApiError(e))
+                        return@onSuccess
                     }
                 }
 
@@ -265,13 +270,13 @@ abstract class Api(
                                 if (response.isSuccessful) {
                                     val responseBody = response.body
                                         ?: throw IOException("Response body is null")
+
                                     val resData = if (encryptor != null) {
-                                        val envelope = Gson().fromJson(responseBody.string(), E2EEResponse::class.java)
-                                        val decrypted = encryptor.decryptResponse(envelope.toCryptogram())
+                                        val decryptedData = encryptor.decryptResponse(CoreEncryptedResponse(responseBody.bytes()))
                                         okHttpClient.interceptors.mapNotNull { it as? ECIESInterceptor }.forEach {
-                                            it.encryptedResponseReceived(request.url.toUrl(), decrypted)
+                                            it.encryptedResponseReceived(request.url.toUrl(), decryptedData)
                                         }
-                                        decrypted
+                                        decryptedData
                                     } else {
                                         responseBody.bytes()
                                     }
@@ -308,22 +313,22 @@ abstract class Api(
     @PublishedApi
     internal inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> getEncryptor(
         endpoint: Endpoint<TRequestData, TResponseData>,
-        crossinline callback: (Result<EciesEncryptor?>) -> Unit
+        crossinline callback: (Result<CoreEncryptor?>) -> Unit
     ) {
 
-        val listener = object : IGetEciesEncryptorListener {
-            override fun onGetEciesEncryptorSuccess(encryptor: EciesEncryptor) {
+        val listener = object : IGetEncryptorListener {
+            override fun onGetEncryptorSuccess(encryptor: CoreEncryptor) {
                 callback(Result.success(encryptor))
             }
 
-            override fun onGetEciesEncryptorFailed(t: Throwable) {
+            override fun onGetEncryptorFailed(t: Throwable) {
                 callback(Result.failure(t))
             }
         }
 
         when (endpoint.e2eeConfiguration) {
-            E2EEConfiguration.APPLICATION_SCOPE -> powerAuthSDK.getEciesEncryptorForApplicationScope(listener)
-            E2EEConfiguration.ACTIVATION_SCOPE -> powerAuthSDK.getEciesEncryptorForActivationScope(appContext, listener)
+            E2EEConfiguration.APPLICATION_SCOPE -> powerAuthSDK.getEncryptorForApplicationScope(listener)
+            E2EEConfiguration.ACTIVATION_SCOPE -> powerAuthSDK.getEncryptorForActivationScope(listener)
             E2EEConfiguration.NOT_ENCRYPTED -> callback(Result.success(null))
         }
     }
@@ -359,25 +364,4 @@ class UserAgent internal constructor(@PublishedApi internal val value: String? =
 
         fun customValue(value: String) = UserAgent(value)
     }
-}
-
-/** Envelope for E2EE requests. */
-@PublishedApi internal class E2EERequest(
-    @SerializedName("temporaryKeyId") val temporaryKeyId: String?,
-    @SerializedName("ephemeralPublicKey") val ephemeralPublicKey: String?,
-    @SerializedName("encryptedData") val encryptedData: String?,
-    @SerializedName("mac") val mac: String?,
-    @SerializedName("nonce") val nonce: String?,
-    @SerializedName("timestamp") val timestamp: Long?
-)
-
-/** Envelope for E2EE responses. */
-@PublishedApi
-internal class E2EEResponse(
-    @SerializedName("encryptedData") val encryptedData: String?,
-    @SerializedName("mac") val mac: String?,
-    @SerializedName("nonce") val nonce: String?,
-    @SerializedName("timestamp") val timestamp: Long?
-) {
-    fun toCryptogram() = EciesCryptogram(null, encryptedData, mac, null, nonce, timestamp ?: 0)
 }
