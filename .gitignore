@@ -17,6 +17,9 @@ ktlint
 # configurations
 configs
 
+# integration test configuration (contains credentials)
+**/androidTest/assets/config.json
+
 # temp data
 /tmp-*
 *.txt
