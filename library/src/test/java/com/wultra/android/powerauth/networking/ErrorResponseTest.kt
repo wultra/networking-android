@@ -126,7 +126,7 @@ class ErrorResponseTest {
 
     private fun buildOkHttpResponse(code: Int, message: String): Response {
         return Response.Builder()
-            .request(Request.Builder().url("https://example.com/test").build())
+            .request(Request.Builder().url("https://wultra.com/test").build())
             .protocol(Protocol.HTTP_1_1)
             .code(code)
             .message(message)

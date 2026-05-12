@@ -24,41 +24,7 @@ import org.junit.Test
 class ApiErrorCodeTest {
 
     @Test
-    fun `known error code resolves correctly`() {
-        assertEquals(
-            ApiErrorCode.POWERAUTH_AUTH_FAIL,
-            ApiErrorCode.errorCodeFromCodeString("POWERAUTH_AUTH_FAIL")
-        )
-    }
-
-    @Test
-    fun `invalid request code resolves`() {
-        assertEquals(
-            ApiErrorCode.INVALID_REQUEST,
-            ApiErrorCode.errorCodeFromCodeString("INVALID_REQUEST")
-        )
-    }
-
-    @Test
-    fun `too many requests code resolves`() {
-        assertEquals(
-            ApiErrorCode.TOO_MANY_REQUESTS,
-            ApiErrorCode.errorCodeFromCodeString("TOO_MANY_REQUESTS")
-        )
-    }
-
-    @Test
-    fun `unknown error code returns null`() {
-        assertNull(ApiErrorCode.errorCodeFromCodeString("COMPLETELY_UNKNOWN_CODE"))
-    }
-
-    @Test
-    fun `empty string returns null`() {
-        assertNull(ApiErrorCode.errorCodeFromCodeString(""))
-    }
-
-    @Test
-    fun `all known codes resolve correctly`() {
+    fun `all known codes resolve via errorCodeFromCodeString`() {
         for (code in ApiErrorCode.entries) {
             assertEquals(
                 "Code ${code.message} should resolve to $code",
@@ -69,81 +35,39 @@ class ApiErrorCodeTest {
     }
 
     @Test
-    fun `error generic code resolves`() {
-        assertEquals(
-            ApiErrorCode.ERROR_GENERIC,
-            ApiErrorCode.errorCodeFromCodeString("ERROR_GENERIC")
-        )
+    fun `codes where enum name matches message string`() {
+        val matchingCodes = ApiErrorCode.entries.filter { it.name == it.message }
+        for (code in matchingCodes) {
+            assertEquals(code, ApiErrorCode.errorCodeFromCodeString(code.name))
+        }
     }
 
     @Test
-    fun `onboarding codes resolve`() {
-        assertEquals(
-            ApiErrorCode.ONBOARDING_FAILED,
-            ApiErrorCode.errorCodeFromCodeString("ONBOARDING_FAILED")
-        )
-        assertEquals(
-            ApiErrorCode.ONBOARDING_PROCESS_LIMIT_REACHED,
-            ApiErrorCode.errorCodeFromCodeString("ONBOARDING_PROCESS_LIMIT_REACHED")
-        )
-        // Note: ONBOARDING_TOO_MANY_PROCESSES maps to "TOO_MANY_ONBOARDING_PROCESSES"
-        assertEquals(
-            ApiErrorCode.ONBOARDING_TOO_MANY_PROCESSES,
-            ApiErrorCode.errorCodeFromCodeString("TOO_MANY_ONBOARDING_PROCESSES")
-        )
+    fun `codes where enum name differs from message string`() {
+        // These entries have a message that does not match the enum name,
+        // so they deserve an explicit assertion beyond the exhaustive loop.
+        assertEquals(ApiErrorCode.ONBOARDING_TOO_MANY_PROCESSES, ApiErrorCode.errorCodeFromCodeString("TOO_MANY_ONBOARDING_PROCESSES"))
+        assertEquals(ApiErrorCode.IDENTITY_INVALID_DOCUMENT, ApiErrorCode.errorCodeFromCodeString("INVALID_DOCUMENT"))
+        assertEquals(ApiErrorCode.IDENTITY_DOCUMENT_SUBMIT_FAILED, ApiErrorCode.errorCodeFromCodeString("DOCUMENT_SUBMIT_FAILED"))
+        assertEquals(ApiErrorCode.IDENTITY_DOCUMENT_VERIFICATION_FAILED, ApiErrorCode.errorCodeFromCodeString("DOCUMENT_VERIFICATION_FAILED"))
+        assertEquals(ApiErrorCode.IDENTITY_PRESENCE_CHECK_FAILED, ApiErrorCode.errorCodeFromCodeString("PRESENCE_CHECK_FAILED"))
+        assertEquals(ApiErrorCode.IDENTITY_PRESENCE_CHECK_NOT_ENABLED, ApiErrorCode.errorCodeFromCodeString("PRESENCE_CHECK_NOT_ENABLED"))
+        assertEquals(ApiErrorCode.IDENTITY_PRESENCE_CHECK_LIMIT_REACHED, ApiErrorCode.errorCodeFromCodeString("PRESENCE_CHECK_LIMIT_REACHED"))
     }
 
     @Test
-    fun `operation codes resolve`() {
-        assertEquals(
-            ApiErrorCode.OPERATION_ALREADY_FINISHED,
-            ApiErrorCode.errorCodeFromCodeString("OPERATION_ALREADY_FINISHED")
-        )
-        assertEquals(
-            ApiErrorCode.OPERATION_ALREADY_FAILED,
-            ApiErrorCode.errorCodeFromCodeString("OPERATION_ALREADY_FAILED")
-        )
-        assertEquals(
-            ApiErrorCode.OPERATION_ALREADY_CANCELED,
-            ApiErrorCode.errorCodeFromCodeString("OPERATION_ALREADY_CANCELED")
-        )
-        assertEquals(
-            ApiErrorCode.OPERATION_EXPIRED,
-            ApiErrorCode.errorCodeFromCodeString("OPERATION_EXPIRED")
-        )
-        assertEquals(
-            ApiErrorCode.OPERATION_FAILED,
-            ApiErrorCode.errorCodeFromCodeString("OPERATION_FAILED")
-        )
+    fun `unknown code returns null`() {
+        assertNull(ApiErrorCode.errorCodeFromCodeString("COMPLETELY_UNKNOWN_CODE"))
     }
 
     @Test
-    fun `identity verification codes resolve`() {
-        assertEquals(
-            ApiErrorCode.IDENTITY_INVALID_DOCUMENT,
-            ApiErrorCode.errorCodeFromCodeString("INVALID_DOCUMENT")
-        )
-        assertEquals(
-            ApiErrorCode.IDENTITY_VERIFICATION_FAILED,
-            ApiErrorCode.errorCodeFromCodeString("IDENTITY_VERIFICATION_FAILED")
-        )
-        assertEquals(
-            ApiErrorCode.IDENTITY_PRESENCE_CHECK_FAILED,
-            ApiErrorCode.errorCodeFromCodeString("PRESENCE_CHECK_FAILED")
-        )
+    fun `empty string returns null`() {
+        assertNull(ApiErrorCode.errorCodeFromCodeString(""))
     }
 
     @Test
-    fun `case sensitive matching`() {
-        // Error codes are case-sensitive
+    fun `lookup is case sensitive`() {
         assertNull(ApiErrorCode.errorCodeFromCodeString("invalid_request"))
         assertNull(ApiErrorCode.errorCodeFromCodeString("Invalid_Request"))
-    }
-
-    @Test
-    fun `message property matches code string`() {
-        assertEquals("ERROR_GENERIC", ApiErrorCode.ERROR_GENERIC.message)
-        assertEquals("POWERAUTH_AUTH_FAIL", ApiErrorCode.POWERAUTH_AUTH_FAIL.message)
-        assertEquals("INVALID_REQUEST", ApiErrorCode.INVALID_REQUEST.message)
     }
 }

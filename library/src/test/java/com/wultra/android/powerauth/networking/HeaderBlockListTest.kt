@@ -61,12 +61,14 @@ class HeaderBlockListTest {
     }
 
     @Test
-    fun `removeAll normalizes to lowercase`() {
+    fun `removeAll removes all items specified in list`() {
         val blockList = HeaderBlockList()
-        blockList.removeAll(listOf("Content-Type", "User-Agent"))
+        blockList.removeAll(listOf("Content-Type", "Content-Length", "User-Agent"))
         val list = blockList.toList()
         assertFalse(list.contains("content-type"))
+        assertFalse(list.contains("content-length"))
         assertFalse(list.contains("user-agent"))
+        assertTrue(list.contains("expires"))
     }
 
     @Test

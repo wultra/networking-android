@@ -18,16 +18,21 @@ package com.wultra.android.powerauth.networking
 
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.TypeAdapter
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonWriter
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.ObjectRequest
+import com.wultra.android.powerauth.networking.data.ObjectResponse
 import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.processing.GsonRequestBodyBytes
 import com.wultra.android.powerauth.networking.processing.GsonResponseBodyConverter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 /**
@@ -46,10 +51,10 @@ class GsonConverterTest {
 
     class TestObjectRequest(payload: Payload) : ObjectRequest<Payload>(payload)
 
-    data class TestObjectResponse(
-        @SerializedName("status") val status: StatusResponse.Status? = null,
-        @SerializedName("responseObject") val payload: Payload? = null
-    )
+    class TestObjectResponse(
+        responseObject: Payload? = null,
+        status: StatusResponse.Status = StatusResponse.Status.OK
+    ) : ObjectResponse<Payload?>(responseObject, status)
 
     // --- GsonRequestBodyBytes tests ---
 
@@ -99,8 +104,8 @@ class GsonConverterTest {
         val response = converter.convert(bytes)
 
         assertEquals(StatusResponse.Status.OK, response.status)
-        assertNotNull(response.payload)
-        assertEquals("done", response.payload!!.value)
+        assertNotNull(response.responseObject)
+        assertEquals("done", response.responseObject!!.value)
     }
 
     @Test
@@ -129,6 +134,27 @@ class GsonConverterTest {
         val converter = GsonResponseBodyConverter(gson, adapter)
         val bytes = "not valid json{{{".toByteArray()
         converter.convert(bytes)
+    }
+
+    // --- Serialization failure tests ---
+
+    @Test
+    fun `request body bytes throws when serialization fails`() {
+        val failingAdapter = object : TypeAdapter<BaseRequest>() {
+            override fun write(out: JsonWriter, value: BaseRequest?) {
+                throw RuntimeException("Simulated serialization failure")
+            }
+            override fun read(reader: JsonReader): BaseRequest {
+                return BaseRequest()
+            }
+        }
+        val converter = GsonRequestBodyBytes(gson, failingAdapter)
+        try {
+            converter.convert(BaseRequest())
+            fail("Expected serialization to throw")
+        } catch (e: RuntimeException) {
+            assertEquals("Simulated serialization failure", e.message)
+        }
     }
 
     // --- Round-trip tests ---
