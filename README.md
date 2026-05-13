@@ -123,14 +123,14 @@ class MyServiceApi(
 
 Each endpoint you will target with your project must be defined for the service as an `Endpoint` instance. There are several types of endpoints based on the PowerAuth signature that is required.
 
-### End To End Encryption
+### End-To-End Encryption
 
 If the endpoint is end-to-end encrypted, you need to configure it in the constructor. Default value is set to `E2EEConfiguration.NOT_ENCRYPTED`.
 
 Possible values are:
 
 ```kotlin
-/** End to end encryption configuration for an endpoint. */
+/** End-to-end encryption configuration for an endpoint. */
 enum class E2EEConfiguration {
     /** Endpoint is encrypted with the application scope. */
     APPLICATION_SCOPE,

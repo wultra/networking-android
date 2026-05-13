@@ -53,6 +53,10 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     // Custom ktlint script
     tasks.register("ktlint") {
         logger.lifecycle("ktlint")
@@ -72,7 +76,19 @@ dependencies {
     implementation("com.google.code.gson:gson:2.14.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // Dependencies
+    // SDK (compile only)
     compileOnly("com.wultra.android.powerauth:powerauth-sdk:2.0.0-SNAPSHOT")
     compileOnly("io.getlime.core:rest-model-base:1.12.0")
+
+    // Unit tests
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+
+    // Instrumented (Android) tests
+    androidTestImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test:rules:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    androidTestImplementation("com.wultra.android.powerauth:powerauth-sdk:2.0.0-SNAPSHOT")
 }

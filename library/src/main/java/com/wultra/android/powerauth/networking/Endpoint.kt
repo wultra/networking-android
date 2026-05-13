@@ -25,9 +25,12 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
  * @param TRequestData Type of the request data.
  * @param TResponseData Type of the response data.
  * @property endpointUrlPath URL path for the endpoint. For example "/my/custom/endpoint".
- * @property e2eeConfiguration End to end encryption configuration for the endpoint.
+ * @property e2eeConfiguration End-to-end encryption configuration for the endpoint.
  */
-abstract class Endpoint<TRequestData: BaseRequest, TResponseData: StatusResponse>(val endpointUrlPath: String, val e2eeConfiguration: E2EEConfiguration)
+abstract class Endpoint<TRequestData: BaseRequest, TResponseData: StatusResponse>(
+    val endpointUrlPath: String,
+    val e2eeConfiguration: E2EEConfiguration
+)
 
 /**
  * Basic endpoint not signed with PowerAuth.
@@ -35,10 +38,12 @@ abstract class Endpoint<TRequestData: BaseRequest, TResponseData: StatusResponse
  * @param TRequestData Type of the request data.
  * @param TResponseData Type of the response data.
  * @param endpointUrlPath URL path for the endpoint. For example "/my/custom/endpoint".
- * @param e2eeConfiguration End to end encryption configuration for the endpoint. `NOT_ENCRYPTED` by default
+ * @param e2eeConfiguration End-to-end encryption configuration for the endpoint. `NOT_ENCRYPTED` by default
  */
-class EndpointBasic<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String, e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED):
-    Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
+class EndpointBasic<TRequestData: BaseRequest, TResponseData: StatusResponse>(
+    endpointUrlPath: String,
+    e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED
+): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
 
 /**
  * Endpoint signed with PowerAuth signature.
@@ -47,10 +52,13 @@ class EndpointBasic<TRequestData: BaseRequest, TResponseData: StatusResponse>(en
  * @param TResponseData Type of the response data.
  * @param endpointUrlPath URL path for the endpoint. For example "/my/custom/endpoint".
  * @property uriId Endpoint ID. Note that this is different from endpoint URL
- * @param e2eeConfiguration End to end encryption configuration for the endpoint.
+ * @param e2eeConfiguration End-to-end encryption configuration for the endpoint.
  */
-class EndpointSigned<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String, val uriId: String, e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED):
-    Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
+class EndpointSigned<TRequestData: BaseRequest, TResponseData: StatusResponse>(
+    endpointUrlPath: String,
+    val uriId: String,
+    e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED
+): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
 
 /**
  * Endpoint signed with PowerAuth Token signature.
@@ -59,12 +67,15 @@ class EndpointSigned<TRequestData: BaseRequest, TResponseData: StatusResponse>(e
  * @param TResponseData Type of the response data.
  * @param endpointUrlPath  URL path for the endpoint. For example "/my/custom/endpoint".
  * @property tokenName Name of the token used for signature.
- * @param e2eeConfiguration End to end encryption configuration for the endpoint.
+ * @param e2eeConfiguration End-to-end encryption configuration for the endpoint.
  */
-class EndpointSignedWithToken<TRequestData: BaseRequest, TResponseData: StatusResponse>(endpointUrlPath: String, val tokenName: String, e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED):
-    Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
+class EndpointSignedWithToken<TRequestData: BaseRequest, TResponseData: StatusResponse>(
+    endpointUrlPath: String,
+    val tokenName: String,
+    e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED
+): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
 
-/** End to end encryption configuration for an endpoint. */
+/** End-to-end encryption configuration for an endpoint. */
 enum class E2EEConfiguration {
     /** Endpoint is encrypted with the application scope. */
     APPLICATION_SCOPE,
