@@ -23,6 +23,8 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.error.ApiError
 import com.wultra.android.powerauth.networking.error.ApiHttpException
 import com.wultra.android.powerauth.networking.log.WPNLogger
+import com.wultra.android.powerauth.networking.support.IntegrationTestApi
+import com.wultra.android.powerauth.networking.support.createDummyPowerAuth
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
