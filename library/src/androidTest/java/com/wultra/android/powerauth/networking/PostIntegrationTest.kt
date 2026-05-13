@@ -19,11 +19,7 @@ package com.wultra.android.powerauth.networking
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.google.gson.GsonBuilder
-import com.google.gson.annotations.SerializedName
 import com.wultra.android.powerauth.networking.data.BaseRequest
-import com.wultra.android.powerauth.networking.data.ObjectRequest
-import com.wultra.android.powerauth.networking.data.ObjectResponse
 import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.error.ApiError
 import com.wultra.android.powerauth.networking.error.ApiHttpException
