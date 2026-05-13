@@ -24,6 +24,11 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.error.ApiError
 import com.wultra.android.powerauth.networking.error.ApiErrorCode
 import com.wultra.android.powerauth.networking.error.ApiHttpException
+import com.wultra.android.powerauth.networking.support.IntegrationTestApi
+import com.wultra.android.powerauth.networking.support.PowerAuthIntegrationProxy
+import com.wultra.android.powerauth.networking.support.TestConfiguration
+import com.wultra.android.powerauth.networking.support.TestEndpoints
+import com.wultra.android.powerauth.networking.support.createDummyPowerAuth
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
@@ -132,7 +137,7 @@ class PostRealServerTest {
     fun e2eePost() {
         val config = loadConfigOrSkip()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val proxy = IntegrationProxy(config, context)
+        val proxy = PowerAuthIntegrationProxy(config, context)
         proxy.initializePowerAuth()
         proxy.prepareActivation()
 
@@ -179,7 +184,7 @@ class PostRealServerTest {
     fun signedPost() {
         val config = loadConfigOrSkip()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val proxy = IntegrationProxy(config, context)
+        val proxy = PowerAuthIntegrationProxy(config, context)
         proxy.initializePowerAuth()
         proxy.prepareActivation()
 
@@ -215,6 +220,49 @@ class PostRealServerTest {
         }
     }
 
+    /**
+     * Token-signed POST to operation/list endpoint.
+     * Verifies [EndpointSignedWithToken] flow with automatic token management.
+     */
+    @Test
+    fun tokenSignedPostOperationList() {
+        val config = loadConfigOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val proxy = PowerAuthIntegrationProxy(config, context)
+        proxy.initializePowerAuth()
+        proxy.prepareActivation()
+
+        try {
+            val testApi = proxy.createApi(config.operationsServerUrl)
+
+            val latch = CountDownLatch(1)
+            var receivedResponse: StatusResponse? = null
+            var receivedError: ApiError? = null
+
+            testApi.post(
+                data = BaseRequest(),
+                endpoint = TestEndpoints.operationList,
+                listener = object : IApiCallResponseListener<StatusResponse> {
+                    override fun onSuccess(result: StatusResponse) {
+                        receivedResponse = result
+                        latch.countDown()
+                    }
+
+                    override fun onFailure(error: ApiError) {
+                        receivedError = error
+                        latch.countDown()
+                    }
+                }
+            )
+
+            assertTrue("Token-signed request should complete within 30s", latch.await(30, TimeUnit.SECONDS))
+            assertNotNull("Should receive success response", receivedResponse)
+            assertEquals(StatusResponse.Status.OK, receivedResponse!!.status)
+        } finally {
+            proxy.cleanup()
+        }
+    }
+
     // --- Failure tests (require config.json) ---
 
     /**
@@ -225,7 +273,7 @@ class PostRealServerTest {
     fun e2eePostUnactivated() {
         val config = loadConfigOrSkip()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val proxy = IntegrationProxy(config, context)
+        val proxy = PowerAuthIntegrationProxy(config, context)
         proxy.initializePowerAuth()
         // Intentionally NOT calling prepareActivation()
 
@@ -266,7 +314,7 @@ class PostRealServerTest {
     fun signedPostWrongPin() {
         val config = loadConfigOrSkip()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val proxy = IntegrationProxy(config, context)
+        val proxy = PowerAuthIntegrationProxy(config, context)
         proxy.initializePowerAuth()
         proxy.prepareActivation()
 
