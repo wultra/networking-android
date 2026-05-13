@@ -102,18 +102,25 @@ class PowerAuthIntegrationProxy(
             .build()
 
         awaitCallback { latch, setError ->
-            pa.createActivation(paActivation, object : ICreateActivationListener {
-                override fun onActivationCreateSucceed(result: CreateActivationResult) {
-                    pa.persistActivationWithPassword(appContext, pin, object : IPersistActivationListener {
-                        override fun onPersistActivationSucceeded() { latch.countDown() }
-                        override fun onPersistActivationFailed(t: Throwable) { setError(t); latch.countDown() }
-                        override fun onPersistActivationCancelled(userCancellation: Boolean) {
-                            setError(IllegalStateException("Activation persist cancelled")); latch.countDown()
-                        }
-                    })
+            pa.createActivation(
+                paActivation,
+                object : ICreateActivationListener {
+                    override fun onActivationCreateSucceed(result: CreateActivationResult) {
+                        pa.persistActivationWithPassword(
+                            appContext,
+                            pin,
+                            object : IPersistActivationListener {
+                                override fun onPersistActivationSucceeded() { latch.countDown() }
+                                override fun onPersistActivationFailed(t: Throwable) { setError(t); latch.countDown() }
+                                override fun onPersistActivationCancelled(userCancellation: Boolean) {
+                                    setError(IllegalStateException("Activation persist cancelled")); latch.countDown()
+                                }
+                            }
+                        )
+                    }
+                    override fun onActivationCreateFailed(t: Throwable) { setError(t); latch.countDown() }
                 }
-                override fun onActivationCreateFailed(t: Throwable) { setError(t); latch.countDown() }
-            })
+            )
         }
         log("Activation persisted")
     }

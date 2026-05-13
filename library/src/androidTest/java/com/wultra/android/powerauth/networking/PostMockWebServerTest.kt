@@ -271,13 +271,15 @@ class PostMockWebServerTest {
             MockResponse()
                 .setResponseCode(400)
                 .setHeader("Content-Type", "application/json")
-                .setBody("""{
-                    "status": "ERROR",
-                    "responseObject": {
-                        "code": "INVALID_REQUEST",
-                        "message": "Bad request"
-                    }
-                }""")
+                .setBody(
+                    """{
+                        "status": "ERROR",
+                        "responseObject": {
+                            "code": "INVALID_REQUEST",
+                            "message": "Bad request"
+                        }
+                    }"""
+                )
         )
 
         val latch = CountDownLatch(1)
@@ -421,13 +423,15 @@ class PostMockWebServerTest {
             MockResponse()
                 .setResponseCode(401)
                 .setHeader("Content-Type", "application/json")
-                .setBody("""{
-                    "status": "ERROR",
-                    "responseObject": {
-                        "code": "POWERAUTH_AUTH_FAIL",
-                        "message": "Authentication failed"
-                    }
-                }""")
+                .setBody(
+                    """{
+                        "status": "ERROR",
+                        "responseObject": {
+                            "code": "POWERAUTH_AUTH_FAIL",
+                            "message": "Authentication failed"
+                        }
+                    }"""
+                )
         )
 
         val latch = CountDownLatch(1)
