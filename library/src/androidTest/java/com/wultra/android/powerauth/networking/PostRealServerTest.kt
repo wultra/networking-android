@@ -155,7 +155,7 @@ class PostRealServerTest {
     }
 
     /**
-     * Signed POST with PowerAuth signature.
+     * Signed POST with PowerAuth authentication code.
      */
     @Test
     fun signedPost() {

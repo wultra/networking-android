@@ -46,7 +46,7 @@ class EndpointBasic<TRequestData: BaseRequest, TResponseData: StatusResponse>(
 ): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
 
 /**
- * Endpoint signed with PowerAuth signature.
+ * Endpoint signed with PowerAuth authentication code.
  *
  * @param TRequestData Type of the request data.
  * @param TResponseData Type of the response data.
@@ -61,12 +61,12 @@ class EndpointSigned<TRequestData: BaseRequest, TResponseData: StatusResponse>(
 ): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
 
 /**
- * Endpoint signed with PowerAuth Token signature.
+ * Endpoint signed with PowerAuth Token authentication code.
  *
  * @param TRequestData Type of the request data.
  * @param TResponseData Type of the response data.
  * @param endpointUrlPath  URL path for the endpoint. For example "/my/custom/endpoint".
- * @property tokenName Name of the token used for signature.
+ * @property tokenName Name of the token used for authentication code.
  * @param e2eeConfiguration End-to-end encryption configuration for the endpoint.
  */
 class EndpointSignedWithToken<TRequestData: BaseRequest, TResponseData: StatusResponse>(

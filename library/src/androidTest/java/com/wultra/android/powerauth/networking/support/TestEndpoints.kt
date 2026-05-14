@@ -30,7 +30,7 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
  * Each property represents a different endpoint type supported by the library:
  * - [todo] — a basic (unsigned) endpoint aimed at a public REST API.
  * - [start] — a basic endpoint with application-scope end-to-end encryption (E2EE).
- * - [history] — a signed endpoint (PowerAuth signature, no token).
+ * - [history] — a signed endpoint (PowerAuth authentication code, no token).
  * - [operationList] — a token-signed endpoint using the `possession_universal` token.
  * - [failingStart] — intentionally configured with activation-scope E2EE on an
  *   endpoint that expects application-scope, so tests can verify error handling.
