@@ -237,10 +237,11 @@ class PowerAuthIntegrationProxy(
             .build()
 
         log("$method $url")
-        val response = httpClient.newCall(request).execute()
-        val responseBody = response.body?.string() ?: ""
-        if (!response.isSuccessful) throw IOException("Cloud server error: HTTP ${response.code} — $responseBody")
-        return gson.fromJson(responseBody, T::class.java)
+        return httpClient.newCall(request).execute().use { response ->
+            val responseBody = response.body?.string() ?: ""
+            if (!response.isSuccessful) throw IOException("Cloud server error: HTTP ${response.code} — $responseBody")
+            gson.fromJson(responseBody, T::class.java)
+        }
     }
 
     /** Runs a callback-based async operation synchronously with a timeout. */

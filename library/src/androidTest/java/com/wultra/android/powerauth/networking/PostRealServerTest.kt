@@ -264,8 +264,8 @@ class PostRealServerTest {
                 endpoint = TestEndpoints.failingStart,
                 listener = object : IApiCallResponseListener<StatusResponse> {
                     override fun onSuccess(result: StatusResponse) {
-                        fail("Should not succeed for E2EE without activation")
                         latch.countDown()
+                        fail("Should not succeed for E2EE without activation")
                     }
 
                     override fun onFailure(error: ApiError) {
@@ -305,8 +305,8 @@ class PostRealServerTest {
                 authentication = PowerAuthAuthentication.possessionWithPassword("0000"),
                 listener = object : IApiCallResponseListener<StatusResponse> {
                     override fun onSuccess(result: StatusResponse) {
-                        fail("Request should have failed with wrong PIN but succeeded")
                         latch.countDown()
+                        fail("Request should have failed with wrong PIN but succeeded")
                     }
 
                     override fun onFailure(error: ApiError) {
