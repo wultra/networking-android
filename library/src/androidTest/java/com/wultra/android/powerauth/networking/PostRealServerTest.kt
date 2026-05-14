@@ -85,7 +85,7 @@ class PostRealServerTest {
 
         realApi.post(
             data = BaseRequest(),
-            endpoint = TestEndpoints.todo,
+            endpoint = TestEndpoints.posts,
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {
                     receivedResponse = result

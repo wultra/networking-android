@@ -28,7 +28,7 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
  * Pre-defined endpoint descriptors used across integration tests.
  *
  * Each property represents a different endpoint type supported by the library:
- * - [todo] — a basic (unsigned) endpoint aimed at a public REST API.
+ * - [posts] — a basic (unsigned) endpoint aimed at a public REST API.
  * - [start] — a basic endpoint with application-scope end-to-end encryption (E2EE).
  * - [history] — a signed endpoint (PowerAuth authentication code, no token).
  * - [operationList] — a token-signed endpoint using the `possession_universal` token.
@@ -38,7 +38,7 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
 object TestEndpoints {
 
     /** Simple unsigned POST to `/posts` (e.g. JSONPlaceholder). */
-    val todo = EndpointBasic<BaseRequest, StatusResponse>("/posts")
+    val posts = EndpointBasic<BaseRequest, StatusResponse>("/posts")
 
     /** Onboarding start with application-scope E2EE. */
     val start = EndpointBasic<StartObjectRequest, StatusResponse>(
