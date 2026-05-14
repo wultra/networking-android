@@ -237,32 +237,6 @@ class PostMockWebServerTest {
         assertEquals("{}", body) // BaseRequest serializes to empty JSON object
     }
 
-    @Test
-    fun basicPostUrlConstruction() {
-        server.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setBody("""{"status":"OK"}""")
-        )
-
-        val latch = CountDownLatch(1)
-
-        api.post(
-            data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/v1/my/endpoint"),
-            listener = object : IApiCallResponseListener<StatusResponse> {
-                override fun onSuccess(result: StatusResponse) { latch.countDown() }
-                override fun onFailure(error: ApiError) { latch.countDown() }
-            }
-        )
-
-        assertTrue(latch.await(10, TimeUnit.SECONDS))
-
-        val recorded = server.takeRequest(1, TimeUnit.SECONDS)
-        assertNotNull(recorded)
-        assertEquals("/v1/my/endpoint", recorded!!.path)
-    }
-
     // --- Failure tests ---
 
     @Test

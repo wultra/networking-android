@@ -16,7 +16,6 @@
 
 package com.wultra.android.powerauth.networking
 
-import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.wultra.android.powerauth.networking.data.BaseRequest
@@ -33,6 +32,7 @@ import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Assume.assumeNotNull
@@ -47,8 +47,6 @@ import java.util.concurrent.TimeUnit
  *
  * These tests require a valid `config.json` in the androidTest assets
  * and a running PowerAuth server. Tests are skipped when the config is absent.
- *
- * Mirrors Apple's WPNPostIntegrationTests (success + failure suites).
  */
 @RunWith(AndroidJUnit4::class)
 class PostRealServerTest {
@@ -56,7 +54,7 @@ class PostRealServerTest {
     private fun loadConfigOrSkip(): TestConfiguration {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val config = TestConfiguration.load(context)
-        assumeNotNull("Skipping: config.json not found in test assets", config)
+        assumeNotNull("⚠\uFE0F Skipping: config.json not found in test assets", config)
         return config!!
     }
 
@@ -64,9 +62,6 @@ class PostRealServerTest {
 
     /**
      * Plain POST to jsonplaceholder.typicode.com.
-     *
-     * Mirrors Apple's `plainPost()` test. Verifies that the HTTP transport
-     * layer works correctly by making a real network call.
      *
      * The test expects an error because jsonplaceholder does not return
      * the WPN envelope format (`{"status":"OK", ...}`).
@@ -106,32 +101,15 @@ class PostRealServerTest {
 
         assertTrue("Real network request should complete within 30s", latch.await(30, TimeUnit.SECONDS))
 
-        // jsonplaceholder returns 201 for POST /posts, but the body is not
-        // in WPN envelope format. The library should either:
-        // 1. Parse successfully (if the response happens to parse as StatusResponse)
-        // 2. Fail with a parse error (ApiHttpException wrapping a Gson error)
-        //
-        // The key assertion is that the request was actually sent and we got a response.
-        if (receivedError != null) {
-            // Expected: transport succeeded but response format doesn't match
-            Log.d("PostRealServerTest", "Got expected error: ${receivedError!!.e}")
-            val httpException = receivedError!!.e as? ApiHttpException
-            if (httpException != null) {
-                // If it's an HTTP exception, the status code should be 201 (Created)
-                assertEquals(201, httpException.code)
-            }
-            // Otherwise it's a parse error, which is also acceptable
-        } else {
-            // If parsing somehow succeeded, the status might be null/unexpected
-            Log.d("PostRealServerTest", "Got response: ${receivedResponse?.status}")
-        }
+        assertNull("Response should be null because JSONPlaceholder response does not match StatusResponse", receivedResponse?.status)
+
+        assertNull("Request should not fail on transport level", receivedError)
     }
 
     // --- Success tests (require config.json) ---
 
     /**
      * E2EE POST with application scope encryption.
-     * Mirrors Apple's `e2eePost()` test.
      */
     @Test
     fun e2eePost() {
@@ -178,7 +156,6 @@ class PostRealServerTest {
 
     /**
      * Signed POST with PowerAuth signature.
-     * Mirrors Apple's `signedPost()` test.
      */
     @Test
     fun signedPost() {
@@ -267,7 +244,6 @@ class PostRealServerTest {
 
     /**
      * E2EE POST with activation scope without activation.
-     * Mirrors Apple's `e2eePostUnactivated()` test.
      */
     @Test
     fun e2eePostUnactivated() {
@@ -308,7 +284,6 @@ class PostRealServerTest {
 
     /**
      * Signed POST with wrong PIN.
-     * Mirrors Apple's `signedPostWrongPin()` test.
      */
     @Test
     fun signedPostWrongPin() {

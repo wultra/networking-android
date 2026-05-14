@@ -22,7 +22,6 @@ import org.junit.Test
 
 /**
  * Tests for UserAgent factory methods.
- * Mirrors Apple's WPNUserAgentTests.
  *
  * Note: UserAgent.libraryDefault(context) requires Android Context
  * and is tested in instrumented tests instead.

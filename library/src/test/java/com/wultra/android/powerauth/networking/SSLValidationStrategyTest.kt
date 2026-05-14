@@ -23,7 +23,6 @@ import org.junit.Test
 
 /**
  * Tests for SSLValidationStrategy.
- * Mirrors Apple's WPNSSLValidationStrategyTests.
  *
  * Note: noValidation() and sslPinning() depend on PowerAuth SDK classes
  * and are tested in instrumented tests instead.

@@ -37,7 +37,6 @@ import org.junit.Test
 
 /**
  * Tests for GsonRequestBodyBytes and GsonResponseBodyConverter.
- * Mirrors Apple's WPNHttpRequestTests for request/response processing.
  */
 class GsonConverterTest {
 
