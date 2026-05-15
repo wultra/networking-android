@@ -23,6 +23,6 @@ Some tests depend on a valid configuration. Such tests **will fail** without a v
 
 ## Endpoint strategy
 
-Integration tests leverage **existing endpoints from the Wultra ecosystem** (Enrollment Server, PowerAuth Cloud) rather than custom test-only endpoints. The endpoint definitions used in tests are reimplemented locally but mirror real endpoints from [digital-onboarding-android](https://github.com/nicklauszhangfn/digital-onboarding-android) and [mtoken-sdk-android](https://github.com/wultra/mtoken-sdk-android). This ensures the SDK is validated against the same server contracts it will encounter in production.
+Integration tests leverage **existing endpoints from the Wultra ecosystem** (Enrollment Server, PowerAuth Cloud) rather than custom test-only endpoints. The endpoint definitions used in tests are reimplemented locally but mirror real endpoints from [mtoken-sdk-android](https://github.com/wultra/mtoken-sdk-android). This ensures the SDK is validated against the same server contracts it will encounter in production.
 
 > **Note:** `config.json` is git-ignored to prevent committing credentials. Only `config-example.json` is tracked.
