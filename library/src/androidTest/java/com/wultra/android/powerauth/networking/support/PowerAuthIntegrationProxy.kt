@@ -83,13 +83,17 @@ class PowerAuthIntegrationProxy(
      * instance. Must be called before [prepareActivation] or [createApi].
      */
     fun initializePowerAuth() {
+        log("Fetching application detail for appId=${config.cloudApplicationId}")
+        log("Cloud URL: ${config.cloudServerUrl}")
         val detail = cloudGet<ApplicationDetail>("/admin/applications/${config.cloudApplicationId}")
+        log("mobileSdkConfig length: ${detail.mobileSdkConfig.length}")
 
         val paConfig = PowerAuthConfiguration.Builder(
             "integration-test",
             config.enrollmentServerUrl,
             detail.mobileSdkConfig
         ).build()
+        log("PowerAuth config built with enrollmentServerUrl: ${config.enrollmentServerUrl}")
 
         val pa = PowerAuthSDK.Builder(paConfig)
             .clientConfiguration(PowerAuthClientConfiguration.Builder().build())
@@ -97,7 +101,7 @@ class PowerAuthIntegrationProxy(
 
         pa.removeActivationLocal(appContext)
         powerAuth = pa
-        log("PowerAuthSDK initialized")
+        log("PowerAuthSDK initialized, hasValidActivation=${pa.hasValidActivation()}, canStartActivation=${pa.canStartActivation()}")
     }
 
     /**
@@ -108,41 +112,54 @@ class PowerAuthIntegrationProxy(
      */
     fun prepareActivation() {
         val pa = requirePowerAuth()
+        log("prepareActivation: creating server registration for userId=$activationName")
 
         val response = cloudPost<RegistrationResponse>(
             "/v2/registrations",
             """{"appId":"${config.cloudApplicationId}","userId":"$activationName","commitPhase":"ON_KEY_EXCHANGE"}"""
         )
         activationId = response.registrationId
-        log("Server activation created: ${response.registrationId}")
+        log("Server activation created: ${response.registrationId}, activationCode length: ${response.activationCode.length}")
 
         val paActivation = PowerAuthActivation.Builder
             .activation(response.activationCode)
             .setActivationName(activationName)
             .build()
 
+        log("Starting client-side activation (createActivation)...")
         awaitCallback { latch, setError ->
             pa.createActivation(
                 paActivation,
                 object : ICreateActivationListener {
                     override fun onActivationCreateSucceed(result: CreateActivationResult) {
+                        log("createActivation succeeded, persisting with PIN...")
                         pa.persistActivationWithPassword(
                             appContext,
                             pin,
                             object : IPersistActivationListener {
-                                override fun onPersistActivationSucceeded() { latch.countDown() }
-                                override fun onPersistActivationFailed(t: Throwable) { setError(t); latch.countDown() }
+                                override fun onPersistActivationSucceeded() {
+                                    log("persistActivation succeeded")
+                                    latch.countDown()
+                                }
+                                override fun onPersistActivationFailed(t: Throwable) {
+                                    log("persistActivation FAILED: ${t.message}")
+                                    setError(t); latch.countDown()
+                                }
                                 override fun onPersistActivationCancelled(userCancellation: Boolean) {
+                                    log("persistActivation cancelled (userCancellation=$userCancellation)")
                                     setError(IllegalStateException("Activation persist cancelled")); latch.countDown()
                                 }
                             }
                         )
                     }
-                    override fun onActivationCreateFailed(t: Throwable) { setError(t); latch.countDown() }
+                    override fun onActivationCreateFailed(t: Throwable) {
+                        log("createActivation FAILED: ${t.javaClass.name}: ${t.message}")
+                        setError(t); latch.countDown()
+                    }
                 }
             )
         }
-        log("Activation persisted")
+        log("Activation persisted, hasValidActivation=${pa.hasValidActivation()}, activationId=${pa.activationIdentifier}")
     }
 
     /**
@@ -207,7 +224,11 @@ class PowerAuthIntegrationProxy(
         log("$method $url")
         return httpClient.newCall(request).execute().use { response ->
             val responseBody = response.body?.string() ?: ""
-            if (!response.isSuccessful) throw IOException("Cloud server error: HTTP ${response.code} — $responseBody")
+            log("$method $url -> HTTP ${response.code}, body length: ${responseBody.length}")
+            if (!response.isSuccessful) {
+                log("ERROR response body: $responseBody")
+                throw IOException("Cloud server error: HTTP ${response.code} — $responseBody")
+            }
             gson.fromJson(responseBody, T::class.java)
         }
     }
