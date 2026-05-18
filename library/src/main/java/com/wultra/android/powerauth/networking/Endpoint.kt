@@ -60,7 +60,7 @@ class EndpointAuthenticated<TRequestData: BaseRequest, TResponseData: StatusResp
     e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED
 ): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
 
-@Deprecated("Renamed to EndpointAuthenticated", replaceWith = ReplaceWith("EndpointAuthenticated"))
+@Deprecated("Renamed to EndpointAuthenticated", replaceWith = ReplaceWith("EndpointAuthenticated<TRequestData, TResponseData>"))
 typealias EndpointSigned<TRequestData, TResponseData> = EndpointAuthenticated<TRequestData, TResponseData>
 
 /**
@@ -78,7 +78,7 @@ class EndpointAuthenticatedWithToken<TRequestData: BaseRequest, TResponseData: S
     e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED
 ): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
 
-@Deprecated("Renamed to EndpointAuthenticatedWithToken", replaceWith = ReplaceWith("EndpointAuthenticatedWithToken"))
+@Deprecated("Renamed to EndpointAuthenticatedWithToken", replaceWith = ReplaceWith("EndpointAuthenticatedWithToken<TRequestData, TResponseData>"))
 typealias EndpointSignedWithToken<TRequestData, TResponseData> = EndpointAuthenticatedWithToken<TRequestData, TResponseData>
 
 /** End-to-end encryption configuration for an endpoint. */
