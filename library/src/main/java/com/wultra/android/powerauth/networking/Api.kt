@@ -59,11 +59,11 @@ interface IApiCallResponseListener<T> {
  *
  * @param baseUrl Base url for all requests
  * @param okHttpClient Configured Http Client
- * @param powerAuthSDK Power Auth instance for request signing
+ * @param powerAuthSDK Power Auth instance for request authentication
  * @param gsonBuilder Builder that will be used for request/response (de)serialization.
  * @param appContext Application context. The library internally uses [Context.applicationContext]
  * to avoid holding a reference to an Activity or other short-lived context.
- * @param tokenProvider Token provided for token signing.
+ * @param tokenProvider Token provider for token-authenticated requests.
  * @param userAgent Default user agent for each request. Note that such value might be "overridden"
  * on per-request basis. Default value is `libraryDefault`.
  */
@@ -109,7 +109,7 @@ abstract class Api(
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
         data: TRequestData,
-        endpoint: EndpointSigned<TRequestData, TResponseData>,
+        endpoint: EndpointAuthenticated<TRequestData, TResponseData>,
         authentication: PowerAuthAuthentication,
         headers: HashMap<String, String>? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
@@ -137,7 +137,7 @@ abstract class Api(
 
     inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
         data: TRequestData,
-        endpoint: EndpointSignedWithToken<TRequestData, TResponseData>,
+        endpoint: EndpointAuthenticatedWithToken<TRequestData, TResponseData>,
         headers: HashMap<String, String>? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
@@ -224,7 +224,7 @@ abstract class Api(
                     try {
                         val encryptedRequest = encryptor.encryptRequest(bytes)
                         bytes = encryptedRequest.requestBody
-                        if (endpoint is EndpointBasic || endpoint is EndpointSignedWithToken) {
+                        if (endpoint is EndpointBasic || endpoint is EndpointAuthenticatedWithToken) {
                             encryptedRequest.requestHeaders.forEach { header ->
                                 headers[header.key] = header.value
                             }

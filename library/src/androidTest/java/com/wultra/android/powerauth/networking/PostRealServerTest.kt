@@ -155,10 +155,10 @@ class PostRealServerTest {
     }
 
     /**
-     * Signed POST with PowerAuth authentication code.
+     * Authenticated POST with PowerAuth authentication code.
      */
     @Test
-    fun signedPost() {
+    fun authenticatedPost() {
         val config = loadConfigOrSkip()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val proxy = PowerAuthIntegrationProxy(config, context)
@@ -189,7 +189,7 @@ class PostRealServerTest {
                 }
             )
 
-            assertTrue("Signed request should complete within 30s", latch.await(30, TimeUnit.SECONDS))
+            assertTrue("Authenticated request should complete within 30s", latch.await(30, TimeUnit.SECONDS))
             assertNotNull("Should receive success response", receivedResponse)
             assertEquals(StatusResponse.Status.OK, receivedResponse!!.status)
         } finally {
@@ -198,11 +198,11 @@ class PostRealServerTest {
     }
 
     /**
-     * Token-signed POST to operation/list endpoint.
-     * Verifies [EndpointSignedWithToken] flow with automatic token management.
+     * Token-authenticated POST to operation/list endpoint.
+     * Verifies [EndpointAuthenticatedWithToken] flow with automatic token management.
      */
     @Test
-    fun tokenSignedPostOperationList() {
+    fun tokenAuthenticatedPostOperationList() {
         val config = loadConfigOrSkip()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val proxy = PowerAuthIntegrationProxy(config, context)
@@ -232,7 +232,7 @@ class PostRealServerTest {
                 }
             )
 
-            assertTrue("Token-signed request should complete within 30s", latch.await(30, TimeUnit.SECONDS))
+            assertTrue("Token-authenticated request should complete within 30s", latch.await(30, TimeUnit.SECONDS))
             assertNotNull("Should receive success response", receivedResponse)
             assertEquals(StatusResponse.Status.OK, receivedResponse!!.status)
         } finally {
@@ -283,10 +283,10 @@ class PostRealServerTest {
     }
 
     /**
-     * Signed POST with the wrong PIN.
+     * Authenticated POST with the wrong PIN.
      */
     @Test
-    fun signedPostWrongPin() {
+    fun authenticatedPostWrongPin() {
         val config = loadConfigOrSkip()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val proxy = PowerAuthIntegrationProxy(config, context)

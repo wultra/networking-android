@@ -18,8 +18,8 @@ package com.wultra.android.powerauth.networking.support
 
 import com.wultra.android.powerauth.networking.E2EEConfiguration
 import com.wultra.android.powerauth.networking.EndpointBasic
-import com.wultra.android.powerauth.networking.EndpointSigned
-import com.wultra.android.powerauth.networking.EndpointSignedWithToken
+import com.wultra.android.powerauth.networking.EndpointAuthenticated
+import com.wultra.android.powerauth.networking.EndpointAuthenticatedWithToken
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.ObjectRequest
 import com.wultra.android.powerauth.networking.data.StatusResponse
@@ -28,16 +28,16 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
  * Pre-defined endpoint descriptors used across integration tests.
  *
  * Each property represents a different endpoint type supported by the library:
- * - [posts] — a basic (unsigned) endpoint aimed at a public REST API.
+ * - [posts] — a basic (unauthenticated) endpoint aimed at a public REST API.
  * - [start] — a basic endpoint with application-scope end-to-end encryption (E2EE).
- * - [history] — a signed endpoint (PowerAuth authentication code, no token).
- * - [operationList] — a token-signed endpoint using the `possession_universal` token.
+ * - [history] — an authenticated endpoint (PowerAuth authentication code, no token).
+ * - [operationList] — a token-authenticated endpoint using the `possession_universal` token.
  * - [failingStart] — intentionally configured with activation-scope E2EE on an
  *   endpoint that expects application-scope, so tests can verify error handling.
  */
 object TestEndpoints {
 
-    /** Simple unsigned POST to `/posts` (e.g. JSONPlaceholder). */
+    /** Simple unauthenticated POST to `/posts` (e.g. JSONPlaceholder). */
     val posts = EndpointBasic<BaseRequest, StatusResponse>("/posts")
 
     /** Onboarding start with application-scope E2EE. */
@@ -46,14 +46,14 @@ object TestEndpoints {
         E2EEConfiguration.APPLICATION_SCOPE
     )
 
-    /** Signed endpoint for fetching operation history (uriId = `/operation/history`). */
-    val history = EndpointSigned<BaseRequest, StatusResponse>(
+    /** Authenticated endpoint for fetching operation history (uriId = `/operation/history`). */
+    val history = EndpointAuthenticated<BaseRequest, StatusResponse>(
         "/api/auth/token/app/operation/history",
         "/operation/history"
     )
 
-    /** Token-signed endpoint for listing pending operations. */
-    val operationList = EndpointSignedWithToken<BaseRequest, StatusResponse>(
+    /** Token-authenticated endpoint for listing pending operations. */
+    val operationList = EndpointAuthenticatedWithToken<BaseRequest, StatusResponse>(
         "/api/auth/token/app/operation/list",
         "possession_universal"
     )
