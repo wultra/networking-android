@@ -283,7 +283,7 @@ class PostRealServerTest {
     }
 
     /**
-     * Signed POST with wrong PIN.
+     * Signed POST with the wrong PIN.
      */
     @Test
     fun signedPostWrongPin() {
@@ -326,6 +326,8 @@ class PostRealServerTest {
                 ApiErrorCode.POWERAUTH_AUTH_FAIL,
                 httpException.errorResponse!!.responseObject.errorCode
             )
+        } catch (e: Exception) {
+            fail("Unexpected exception: $e with message ${e.message} and cause ${e.cause}")
         } finally {
             proxy.cleanup()
         }
