@@ -46,6 +46,6 @@ jobs:
         with:
           api-level: 34
           arch: x86_64
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           script: ./scripts/test.sh -type android -config "${TESTS_CONFIG}"
