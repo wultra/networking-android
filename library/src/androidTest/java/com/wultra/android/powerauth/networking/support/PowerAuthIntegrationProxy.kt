@@ -49,7 +49,7 @@ import java.util.concurrent.TimeUnit
  * ```
  * val proxy = PowerAuthIntegrationProxy(config, context)
  * proxy.initializePowerAuth()
- * proxy.prepareActivation()   // optional — only needed for signed/token endpoints
+ * proxy.prepareActivation()   // optional — only needed for authenticated/token endpoints
  * val api = proxy.createApi(baseUrl)
  * // ... run tests ...
  * proxy.cleanup()

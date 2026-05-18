@@ -22,8 +22,8 @@ Single-module Gradle project (`library/`) with source in `library/src/main/java/
 
 ### Core classes
 
-- **`Api`** — Abstract base class that consumers inherit to create service APIs. Provides `post()` methods for three endpoint types: basic, signed, and token-signed. Uses OkHttp for HTTP and Gson for serialization.
-- **`Endpoint`** hierarchy — `EndpointBasic`, `EndpointSigned`, `EndpointSignedWithToken` define endpoint metadata (URL path, uriId/tokenName, E2EE config).
+- **`Api`** — Abstract base class that consumers inherit to create service APIs. Provides `post()` methods for three endpoint types: basic, authenticated, and token-authenticated. Uses OkHttp for HTTP and Gson for serialization.
+- **`Endpoint`** hierarchy — `EndpointBasic`, `EndpointAuthenticated`, `EndpointAuthenticatedWithToken` define endpoint metadata (URL path, uriId/tokenName, E2EE config).
 - **`BaseRequest` / `ObjectRequest<T>`** — All request bodies extend `BaseRequest`. Payloads use `ObjectRequest` with a `requestObject` field.
 - **`StatusResponse` / `ObjectResponse<T>`** — All responses extend `StatusResponse` (has `status: OK|ERROR`). Payloads use `ObjectResponse` with a `responseObject` field.
 - **`ApiError` / `ApiErrorCode`** — Error model. `ApiError` wraps exceptions; `ApiErrorCode` enumerates known server error codes.
@@ -31,7 +31,7 @@ Single-module Gradle project (`library/`) with source in `library/src/main/java/
 
 ### Key packages
 
-- `tokens/` — Token management for `EndpointSignedWithToken` endpoints
+- `tokens/` — Token management for `EndpointAuthenticatedWithToken` endpoints
 - `error/` — Error types and response parsing
 - `data/` — Request/response base classes
 - `processing/` — Gson serialization helpers

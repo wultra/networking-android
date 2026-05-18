@@ -56,8 +56,8 @@ class EndpointTest {
     }
 
     @Test
-    fun `signed endpoint has correct path and uriId`() {
-        val endpoint = EndpointSigned<BaseRequest, StatusResponse>(
+    fun `authenticated endpoint has correct path and uriId`() {
+        val endpoint = EndpointAuthenticated<BaseRequest, StatusResponse>(
             "/api/auth/token/app/operation/history",
             "/operation/history"
         )
@@ -66,14 +66,14 @@ class EndpointTest {
     }
 
     @Test
-    fun `signed endpoint defaults to not encrypted`() {
-        val endpoint = EndpointSigned<BaseRequest, StatusResponse>("/api/sign", "/sign")
+    fun `authenticated endpoint defaults to not encrypted`() {
+        val endpoint = EndpointAuthenticated<BaseRequest, StatusResponse>("/api/sign", "/sign")
         assertEquals(E2EEConfiguration.NOT_ENCRYPTED, endpoint.e2eeConfiguration)
     }
 
     @Test
-    fun `signed endpoint with encryption`() {
-        val endpoint = EndpointSigned<BaseRequest, StatusResponse>(
+    fun `authenticated endpoint with encryption`() {
+        val endpoint = EndpointAuthenticated<BaseRequest, StatusResponse>(
             "/api/sign",
             "/sign",
             E2EEConfiguration.APPLICATION_SCOPE
@@ -82,8 +82,8 @@ class EndpointTest {
     }
 
     @Test
-    fun `token signed endpoint has correct path and token name`() {
-        val endpoint = EndpointSignedWithToken<BaseRequest, StatusResponse>(
+    fun `token authenticated endpoint has correct path and token name`() {
+        val endpoint = EndpointAuthenticatedWithToken<BaseRequest, StatusResponse>(
             "/api/auth/token/app/operation/list",
             "possession_universal"
         )
@@ -92,8 +92,8 @@ class EndpointTest {
     }
 
     @Test
-    fun `token signed endpoint defaults to not encrypted`() {
-        val endpoint = EndpointSignedWithToken<BaseRequest, StatusResponse>(
+    fun `token authenticated endpoint defaults to not encrypted`() {
+        val endpoint = EndpointAuthenticatedWithToken<BaseRequest, StatusResponse>(
             "/api/list",
             "access-token"
         )
@@ -101,8 +101,8 @@ class EndpointTest {
     }
 
     @Test
-    fun `token signed endpoint with encryption`() {
-        val endpoint = EndpointSignedWithToken<BaseRequest, StatusResponse>(
+    fun `token authenticated endpoint with encryption`() {
+        val endpoint = EndpointAuthenticatedWithToken<BaseRequest, StatusResponse>(
             "/api/list",
             "access-token",
             E2EEConfiguration.ACTIVATION_SCOPE
