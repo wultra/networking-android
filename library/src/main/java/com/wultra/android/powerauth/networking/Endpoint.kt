@@ -33,7 +33,7 @@ abstract class Endpoint<TRequestData: BaseRequest, TResponseData: StatusResponse
 )
 
 /**
- * Basic endpoint not signed with PowerAuth.
+ * Basic endpoint not authenticated with PowerAuth.
  *
  * @param TRequestData Type of the request data.
  * @param TResponseData Type of the response data.
@@ -46,7 +46,7 @@ class EndpointBasic<TRequestData: BaseRequest, TResponseData: StatusResponse>(
 ): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
 
 /**
- * Endpoint signed with PowerAuth signature.
+ * Endpoint authenticated with PowerAuth authentication code.
  *
  * @param TRequestData Type of the request data.
  * @param TResponseData Type of the response data.
@@ -54,26 +54,32 @@ class EndpointBasic<TRequestData: BaseRequest, TResponseData: StatusResponse>(
  * @property uriId Endpoint ID. Note that this is different from endpoint URL
  * @param e2eeConfiguration End-to-end encryption configuration for the endpoint.
  */
-class EndpointSigned<TRequestData: BaseRequest, TResponseData: StatusResponse>(
+class EndpointAuthenticated<TRequestData: BaseRequest, TResponseData: StatusResponse>(
     endpointUrlPath: String,
     val uriId: String,
     e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED
 ): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
 
+@Deprecated("Renamed to EndpointAuthenticated", replaceWith = ReplaceWith("EndpointAuthenticated<TRequestData, TResponseData>"))
+typealias EndpointSigned<TRequestData, TResponseData> = EndpointAuthenticated<TRequestData, TResponseData>
+
 /**
- * Endpoint signed with PowerAuth Token signature.
+ * Endpoint authenticated with PowerAuth Token authentication code.
  *
  * @param TRequestData Type of the request data.
  * @param TResponseData Type of the response data.
  * @param endpointUrlPath  URL path for the endpoint. For example "/my/custom/endpoint".
- * @property tokenName Name of the token used for signature.
+ * @property tokenName Name of the token used for authentication code.
  * @param e2eeConfiguration End-to-end encryption configuration for the endpoint.
  */
-class EndpointSignedWithToken<TRequestData: BaseRequest, TResponseData: StatusResponse>(
+class EndpointAuthenticatedWithToken<TRequestData: BaseRequest, TResponseData: StatusResponse>(
     endpointUrlPath: String,
     val tokenName: String,
     e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED
 ): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
+
+@Deprecated("Renamed to EndpointAuthenticatedWithToken", replaceWith = ReplaceWith("EndpointAuthenticatedWithToken<TRequestData, TResponseData>"))
+typealias EndpointSignedWithToken<TRequestData, TResponseData> = EndpointAuthenticatedWithToken<TRequestData, TResponseData>
 
 /** End-to-end encryption configuration for an endpoint. */
 enum class E2EEConfiguration {

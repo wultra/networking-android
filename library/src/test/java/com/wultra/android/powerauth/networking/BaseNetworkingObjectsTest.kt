@@ -31,7 +31,6 @@ import org.junit.Test
 
 /**
  * Tests Gson serialization/deserialization of request and response models.
- * Mirrors Apple's WPNBaseNetworkingObjectsTests.
  */
 class BaseNetworkingObjectsTest {
 

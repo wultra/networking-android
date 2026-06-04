@@ -84,7 +84,7 @@ This class takes several parameters:
 It is expected that you inherit this class and create your own APIs based on our needs.
 <!-- end -->
 
-Example MyServiceApi that will call 2 sample endpoints (one signed and one signed with token):
+Example MyServiceApi that will call 2 sample endpoints (one authenticated and one authenticated with token):
 
 ```kotlin
 class MyServiceApi(
@@ -102,17 +102,17 @@ class MyServiceApi(
 
     companion object {
         // This endpoint points to https://my.serviceurl.com/api/auth/token/app/user/sample
-        private val sampleEndpoint1 = EndpointSigned<SampleRequest, SampleResponse>("api/my/endpoint/user/sample", "/user/get")
+        private val sampleEndpoint1 = EndpointAuthenticated<SampleRequest, SampleResponse>("api/my/endpoint/user/sample", "/user/get")
         // This endpoint points to https://my.serviceurl.com/api/auth/token/app/user/sample2
-        private val sampleEndpoint2 = EndpointSignedWithToken<SampleRequest, SampleResponse>("api/my/endpoint/user/sample2", "possession_universal")
+        private val sampleEndpoint2 = EndpointAuthenticatedWithToken<SampleRequest, SampleResponse>("api/my/endpoint/user/sample2", "possession_universal")
     }
     
-    /** Get the username with a token-signed request. */
+    /** Get the username with a token-authenticated request. */
     fun sample1(userID: String, listener: IApiCallResponseListener<SampleResponse>) {
         post(SampleRequest(SampleRequestData(userID)), sampleEndpoint1, null, null, null, listener)
     }
     
-    /** Get the username with a user-signed request. */
+    /** Get the username with a user-authenticated request. */
     fun sample2(userID: String, authentication: PowerAuthAuthentication, listener: IApiCallResponseListener<SampleResponse>) {
         post(SampleRequest(SampleRequestData(userID)), sampleEndpoint2, authentication, null, null, null, listener)
     }
@@ -121,7 +121,7 @@ class MyServiceApi(
 
 ## Endpoint Definition
 
-Each endpoint you will target with your project must be defined for the service as an `Endpoint` instance. There are several types of endpoints based on the PowerAuth signature that is required.
+Each endpoint you will target with your project must be defined for the service as an `Endpoint` instance. There are several types of endpoints based on the PowerAuth authentication code that is required.
 
 ### End-To-End Encryption
 
@@ -145,27 +145,27 @@ enum class E2EEConfiguration {
 Whether an endpoint is encrypted or not is based on its backend definition.
 <!-- end -->
 
-### Signed endpoint `EndpointSigned`
+### Authenticated endpoint `EndpointAuthenticated`
 
-For endpoints that are __signed__ by PowerAuth signature and can be end-to-end encrypted.
+For endpoints that are __authenticated__ by PowerAuth authentication code and can be end-to-end encrypted.
 
 Example:
 
 ```kotlin
-val mySignedEndpoint = EndpointSigned<MyRequest, MyResponse>("api/my/endpoint/path", "/endpoint/uriId", E2EEConfiguration.NOT_ENCRYPTED)
+val myAuthenticatedEndpoint = EndpointAuthenticated<MyRequest, MyResponse>("api/my/endpoint/path", "/endpoint/uriId", E2EEConfiguration.NOT_ENCRYPTED)
 // uriId is defined by the endpoint issuer - ask your server developer/provider
 ```
 
-### Signed endpoint with Token `EndpointSignedWithToken`
+### Authenticated endpoint with Token `EndpointAuthenticatedWithToken`
 
-For endpoints that are __signed by token__ by PowerAuth signature and can be end-to-end encrypted.
+For endpoints that are __authenticated by token__ by PowerAuth authentication code and can be end-to-end encrypted.
 
 More info for token-based authentication [can be found here](https://github.com/wultra/powerauth-mobile-sdk/blob/develop/docs/PowerAuth-SDK-for-Android.md#token-based-authentication)
 
 Example:
 
 ```kotlin
-val myTokenEndpoint = EndpointSignedWithToken<MyRequest, MyResponse>("api/my/endpoint/path", "possession_universal", E2EEConfiguration.NOT_ENCRYPTED)
+val myTokenEndpoint = EndpointAuthenticatedWithToken<MyRequest, MyResponse>("api/my/endpoint/path", "possession_universal", E2EEConfiguration.NOT_ENCRYPTED)
 
 // token name (`possession_universal` in this case) is the name of the token as stored in the PowerAuthSDK
 // more info can be found in the PowerAuthSDK documentation
@@ -173,9 +173,9 @@ val myTokenEndpoint = EndpointSignedWithToken<MyRequest, MyResponse>("api/my/end
 
 ```
 
-### Basic endpoint (not signed) `EndpointBasic`
+### Basic endpoint (not authenticated) `EndpointBasic`
 
-For endpoints that are __not signed__ by PowerAuth signature but can be end-to-end encrypted.
+For endpoints that are __not authenticated__ by PowerAuth authentication code but can be end-to-end encrypted.
 
 Example:
 
@@ -189,7 +189,7 @@ To create an HTTP request to your endpoint, you need to call the `Api.post` meth
 
 - `data` - with the payload of your request
 - `endpoint` - an endpoint that will be called
-- `auth` - `PowerAuthAuthentication` instance that will sign the request  
+- `auth` - `PowerAuthAuthentication` instance that will authenticate the request  
   - this parameter is missing for the basic and token endpoints 
 - `headers` - custom HTTP headers, `null` by default
 - `okHttpInterceptor` - OkHttp interceptor to intercept requests eg. for logging purposes, `null` by default
@@ -208,7 +208,7 @@ class SampleRequest(requestObject: SampleRequestData): ObjectRequest<SampleReque
 class SampleResponse(responseObject: SampleResponseData, status: Status): ObjectResponse<SampleResponseData>(responseObject, status)
 
 // endpoint configuration
-val myEndpoint = EndpointSigned<SampleRequest, SampleResponse>("api/my/endpoint/path", "/my/endoint/uriId", E2EEConfiguration.NOT_ENCRYPTED)
+val myEndpoint = EndpointAuthenticated<SampleRequest, SampleResponse>("api/my/endpoint/path", "/my/endoint/uriId", E2EEConfiguration.NOT_ENCRYPTED)
 
 // Authentication, for example purposes, expect user PIN 1111
 val auth = PowerAuthAuthentication.possessionWithPassword("1111")
