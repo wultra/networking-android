@@ -36,12 +36,12 @@ We use this SDK in our other open-source projects that you can take inspiration 
 
 ### Requirements
 
-- Android 5.0+ (API level 21+)
+- Android 6.0+ (API level 23+)
 - [PowerAuth Mobile SDK](https://github.com/wultra/powerauth-mobile-sdk) needs to be implemented in your project
 
 ### Gradle
 
-To use the SDK in your Android application include the following dependency to your gradle file.
+To use the SDK in your Android application, include the following dependency to your Gradle file.
 
 ```groovy
 repositories {
@@ -64,7 +64,7 @@ implementation "com.wultra.android.powerauth:powerauth-networking:1.x.y"
 
 ## Open Source Code
 
-The code of the library is open source and you can freely browse it in our GitHub at [https://github.com/wultra/networking-android](https://github.com/wultra/networking-android/#docucheck-keep-link)
+The code of the library is open source, and you can freely browse it in our GitHub at [https://github.com/wultra/networking-android](https://github.com/wultra/networking-android/#docucheck-keep-link)
 
 ## Creating a Service API Class
 
@@ -84,7 +84,7 @@ This class takes several parameters:
 It is expected that you inherit this class and create your own APIs based on our needs.
 <!-- end -->
 
-Example MyServiceApi that will call 2 sample endpoints (one authenticated and one authenticated with token):
+Example MyServiceApi that will call 2 sample endpoints (one authenticated and one authenticated with a token):
 
 ```kotlin
 class MyServiceApi(
@@ -248,7 +248,7 @@ Every error produced by this library is of a `ApiError` type. This error contain
 
 ### ApiErrorCode
 
-Each `ApiError ` has an optional `error` property for why the error was created. Such reason can be useful when you're creating for example a general error handling or reporting, or when you're debugging the code.
+Each `ApiError ` has an optional `error` property for why the error was created. Such reason can be useful when you're creating, for example, a general error handling or reporting, or when you're debugging the code.
 
 #### Known common API errors
 
@@ -282,7 +282,7 @@ There are many Wultra-specific codes available, each starting with a service pre
 Before using any methods from this SDK that call the backend, a proper language should be set. A properly translated content is served based on this configuration. The property that stores language settings __does not persist__. You need to set `acceptLanguage` every time that the application boots.
 
 <!-- begin box warning -->
-Note: Content language capabilities are limited by the implementation of the server - it must support the provided language.
+Note: Content language capabilities are limited by the implementation of the server – it must support the provided language.
 <!-- end -->
 
 ### Format
@@ -321,6 +321,8 @@ Log listener comes in handy when you want to log into a file or some online serv
 ### 2.0.0
 
 - Upgraded PowerAuth SDK to `2.0.0`
+- Bumped AGP to `8.9.1`
+- Upgraded targetSdk to `36`, raise minSdk to `23`, build tools to `36.0.0`
 - Updated request signing and E2EE encryption/decryption to match PowerAuth SDK 2.0 APIs (`CoreEncryptor` replaces `EciesEncryptor`)
 - Improved error handling — signing and encryption failures are now properly reported via `onFailure` callback
 
