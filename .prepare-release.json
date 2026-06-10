@@ -17,7 +17,8 @@
             "description": "Changelog for the wultra documentation.",
             "path": "README.md",
             "type": "version_verify",
-            "match": "### %VERSION%"
+            "match": "### %VERSION%",
+            "skipForSnapshot": true
         }
     ],
     "scripts": [
