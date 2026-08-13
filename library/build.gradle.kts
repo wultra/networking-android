@@ -77,7 +77,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // SDK (compile only)
-    compileOnly("com.wultra.android.powerauth:powerauth-sdk:2.0.0-SNAPSHOT")
+    compileOnly("com.wultra.android.powerauth:powerauth-sdk:2.0.0")
     compileOnly("io.getlime.core:rest-model-base:1.12.0")
 
     // Unit tests
@@ -90,5 +90,5 @@ dependencies {
     androidTestImplementation("androidx.test:rules:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
-    androidTestImplementation("com.wultra.android.powerauth:powerauth-sdk:2.0.0-SNAPSHOT")
+    androidTestImplementation("com.wultra.android.powerauth:powerauth-sdk:2.0.0")
 }
