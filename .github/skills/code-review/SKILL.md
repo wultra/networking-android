@@ -5,7 +5,14 @@ description: Review pull requests in the Wultra PowerAuth Networking Android rep
 
 # Networking Android code review
 
-Review `networking-android` as the published `com.wultra.android.powerauth:powerauth-networking` AAR. Start by confirming the repository, PR target, PR head, and checked-out commit (`git remote -v`, `git branch --show-current`, `git status --short`, and `git log -1 --oneline`). This repository is normally reviewed against `develop`; treat `release/*` as a release base. Do not assume the local checkout is the PR head.
+Review only PR and repository content already available. Do not run or suggest
+commands, scripts, builds, tests, linters, formatters, validation tasks, or Git
+operations.
+
+Review `networking-android` as the published
+`com.wultra.android.powerauth:powerauth-networking` AAR. Use available PR
+metadata for the target and head. This repository is normally reviewed against
+`develop`; treat `release/*` as a release base.
 
 ## Review decision and comments
 
@@ -32,10 +39,15 @@ Flag changed method signatures, visibility, nullability, error mapping, serializ
 
 Follow changed request bytes through `Api.kt`, `Endpoint.kt`, `ECIESInterceptor.kt`, Gson converters, and token providers. Report only proven cases where signing, ECIES encryption, authorization-token attachment, endpoint method/path/header construction, response parsing, or HTTP error conversion changes incompatibly or exposes data. Treat SSL/pinning changes as security critical: `TrustAllCertsTrustManager` must not become reachable except under the explicitly supported validation strategy, and `ISSLPinningProvider`/`SSLValidationStrategy` must not silently weaken host or certificate validation. Do not allow request payloads, authorization tokens, headers, decrypted responses, or key material to reach `WPNLogger`.
 
-## Version, release, docs, and validation
+## Version, release, docs, and review evidence
 
 `library/gradle.properties` declares `VERSION_NAME`; `library/build.gradle.kts` exports it in `BuildConfig`. For a release-to-`develop` change, every declared development version must be exactly `0.0.1-dev`, including `library/gradle.properties` and any changed release metadata. Do not invent a release version.
 
-Public usage belongs in `README.md`; release metadata is `.prepare-release.json` and `scripts/prepare-release.sh`. Require a matching public documentation update and release/changelog entry only when a changed public behavior or API actually warrants one. Build, lint, and test automation is in `.github/workflows/{build,lint,tests}.yml` and `scripts/{build-and-publish,lint,test,prepare-release}.sh`; use it to select evidence, but do not give CI advice.
+Public usage belongs in `README.md`; release metadata is `.prepare-release.json` and `scripts/prepare-release.sh`. Require a matching public documentation update and release/changelog entry only when a changed public behavior or API actually warrants one. Build, lint, and test automation is tracked in `.github/workflows/{build,lint,tests}.yml` and `scripts/{build-and-publish,lint,test,prepare-release}.sh`; these files may be read for context only.
 
-Relevant regression suites are `library/src/test/java/com/wultra/android/powerauth/networking/` (including SSL, Gson, errors, endpoints, headers, and tokens) and `library/src/androidTest/java/com/wultra/android/powerauth/networking/` (MockWebServer and real-server flows). When validation is needed, use the repository commands documented in `.github/copilot-instructions.md`: `./gradlew clean build`, `./scripts/lint.sh`, and the relevant Gradle test task.
+Relevant regression suites are
+`library/src/test/java/com/wultra/android/powerauth/networking/` (including SSL,
+Gson, errors, endpoints, headers, and tokens) and
+`library/src/androidTest/java/com/wultra/android/powerauth/networking/`
+(MockWebServer and real-server flows). Inspect them only as available evidence;
+never suggest running them.
