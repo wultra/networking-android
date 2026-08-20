@@ -51,17 +51,6 @@ repositories {
 implementation "com.wultra.android.powerauth:powerauth-networking:1.x.y"
 ```
 
-### Guaranteed PowerAuth Compatibility
-
-| WPN SDK           | PowerAuth SDK |  
-|-------------------|---------------|
-| `2.0.x`           | `2.0.x`       |
-| `1.5.x`           | `1.9.x`       |
-| `1.4.x`           | `1.8.x`       |
-| `1.3.x`           | `1.8.x`       |
-| `1.1.x` - `1.2.x` | `1.7.x`       |
-| `1.0.x`           | `1.6.x`       |
-
 ## Open Source Code
 
 The code of the library is open source, and you can freely browse it in our GitHub at [https://github.com/wultra/networking-android](https://github.com/wultra/networking-android/#docucheck-keep-link)
