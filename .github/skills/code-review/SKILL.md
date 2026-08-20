@@ -1,3 +1,8 @@
+---
+name: code-review
+description: Review pull requests in the Wultra PowerAuth Networking Android repository. Use when reviewing Kotlin APIs, transport security, serialization, concurrency, or release changes.
+---
+
 # Networking Android code review
 
 Review `networking-android` as the published `com.wultra.android.powerauth:powerauth-networking` AAR. Start by confirming the repository, PR target, PR head, and checked-out commit (`git remote -v`, `git branch --show-current`, `git status --short`, and `git log -1 --oneline`). This repository is normally reviewed against `develop`; treat `release/*` as a release base. Do not assume the local checkout is the PR head.
