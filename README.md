@@ -318,6 +318,8 @@ Log listener comes in handy when you want to log into a file or some online serv
 
 ## Changelog
 
+### TBA
+
 ### 2.0.0
 
 - Upgraded PowerAuth SDK to `2.0.0`
