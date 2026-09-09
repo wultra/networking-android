@@ -28,7 +28,7 @@ class DeprecatedTokenApisTest {
 
     @Test
     fun tokenApisAreDeprecatedForCompatibility() {
-        assertTrue(IPowerAuthTokenProvider::class.java.isAnnotationPresent(java.lang.Deprecated::class.java))
-        assertTrue(IPowerAuthTokenListener::class.java.isAnnotationPresent(java.lang.Deprecated::class.java))
+        assertTrue(IPowerAuthTokenProvider::class.java.isAnnotationPresent(Deprecated::class.java))
+        assertTrue(IPowerAuthTokenListener::class.java.isAnnotationPresent(Deprecated::class.java))
     }
 }

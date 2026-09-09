@@ -30,6 +30,8 @@ import com.wultra.android.powerauth.networking.error.ErrorResponse
 import com.wultra.android.powerauth.networking.log.WPNLogger
 import com.wultra.android.powerauth.networking.processing.GsonRequestBodyBytes
 import com.wultra.android.powerauth.networking.processing.GsonResponseBodyConverter
+import com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenProvider
+import com.wultra.android.powerauth.networking.tokens.TokenManager
 import com.wultra.android.powerauth.networking.utils.AppUtils
 import com.wultra.android.powerauth.networking.utils.ConnectionMonitor
 import com.wultra.android.powerauth.networking.utils.getCurrentLocale
@@ -84,6 +86,15 @@ abstract class Api(
     var acceptLanguage = "en"
 
     @PublishedApi internal val okHttpClient: OkHttpClient
+
+    // DEPRECATED: retained for binary compatibility with previously inlined token posts.
+    @PublishedApi
+    @Deprecated(
+        "Token providers are ignored and will be removed in the next major version.",
+        level = DeprecationLevel.WARNING
+    )
+    @Suppress("DEPRECATION")
+    internal val tokenProvider: IPowerAuthTokenProvider = TokenManager(appContext, powerAuthSDK.tokenStore)
 
     init {
         val builder = okHttpClient.newBuilder()
@@ -383,7 +394,8 @@ abstract class Api(
         powerAuthSDK: PowerAuthSDK,
         gsonBuilder: GsonBuilder,
         appContext: Context,
-        @Suppress("unused") tokenProvider: com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenProvider?,
+        @Suppress("UNUSED_PARAMETER", "DEPRECATION")
+        tokenProvider: IPowerAuthTokenProvider?,
         userAgent: UserAgent = UserAgent.libraryDefault(appContext)
     ) : this(
         baseUrl,
