@@ -58,9 +58,9 @@ if [ -n "${CONFIG_JSON}" ]; then
 fi
 
 if [ "${TYPE}" == "unit" ] ; then
-    ./gradlew :library:testDebugUnitTest
+    ./gradlew --console=plain :library:testDebugUnitTest --rerun-tasks
 elif [ "${TYPE}" == "android" ] ; then
-    ./gradlew :library:connectedDebugAndroidTest
+    ./gradlew --console=plain :library:connectedDebugAndroidTest --rerun-tasks
 else
     echo "Invalid -type value '${TYPE}'. Expected 'unit' or 'android'."
     print_usage
