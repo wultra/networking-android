@@ -15,15 +15,19 @@
  */
 
 /**
- * Deprecated token provider APIs retained only for source compatibility. These APIs will be
+ * Deprecated token provider APIs retained for source and binary compatibility. These APIs will be
  * removed in the next major version.
  *
- * These APIs are never invoked by the library. Token-authenticated requests always use
- * [io.getlime.security.powerauth.sdk.PowerAuthSDK.tokenStore].
+ * New token-authenticated requests use [io.getlime.security.powerauth.sdk.PowerAuthSDK.tokenStore]
+ * directly. The compatibility provider is retained only for previously compiled clients.
  */
 package com.wultra.android.powerauth.networking.tokens
 
+import android.content.Context
+import io.getlime.security.powerauth.networking.response.IGetTokenListener
+import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import io.getlime.security.powerauth.sdk.PowerAuthToken
+import io.getlime.security.powerauth.sdk.PowerAuthTokenStore
 
 @Deprecated(
     "Token providers are ignored and will be removed in the next major version. " +
@@ -42,4 +46,48 @@ interface IPowerAuthTokenProvider {
 interface IPowerAuthTokenListener {
     fun onReceived(token: PowerAuthToken)
     fun onFailed(e: Throwable)
+}
+
+/**
+ * Deprecated compatibility implementation for the former [IPowerAuthTokenProvider] default.
+ *
+ * New library code uses [PowerAuthTokenStore] directly. This class remains available only for
+ * previously compiled inline token requests and will be removed in the next major version.
+ */
+@Deprecated(
+    "TokenManager is retained only for binary compatibility and will be removed in the next major version.",
+    level = DeprecationLevel.WARNING
+)
+internal class TokenManager(
+    appContext: Context,
+    private val powerAuthTokenStore: PowerAuthTokenStore
+) : IPowerAuthTokenProvider {
+
+    private val appContext: Context = appContext.applicationContext
+
+    override fun getTokenAsync(tokenName: String, listener: IPowerAuthTokenListener) {
+        val localPowerAuthToken = powerAuthTokenStore.getLocalToken(appContext, tokenName)
+        if (localPowerAuthToken != null) {
+            listener.onReceived(localPowerAuthToken)
+        } else {
+            try {
+                powerAuthTokenStore.requestAccessToken(
+                    appContext,
+                    tokenName,
+                    PowerAuthAuthentication.possession(),
+                    object : IGetTokenListener {
+                        override fun onGetTokenSucceeded(token: PowerAuthToken) {
+                            listener.onReceived(token)
+                        }
+
+                        override fun onGetTokenFailed(t: Throwable) {
+                            listener.onFailed(t)
+                        }
+                    }
+                )
+            } catch (t: Throwable) {
+                listener.onFailed(t)
+            }
+        }
+    }
 }
