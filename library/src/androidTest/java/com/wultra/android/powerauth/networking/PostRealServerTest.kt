@@ -31,6 +31,7 @@ import com.wultra.android.powerauth.networking.support.createDummyPowerAuth
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -149,6 +150,7 @@ class PostRealServerTest {
             assertTrue("E2EE request should complete within 30s", latch.await(30, TimeUnit.SECONDS))
             assertNotNull("Should receive success response", receivedResponse)
             assertEquals(StatusResponse.Status.OK, receivedResponse!!.status)
+            assertNull("Successful E2EE request should not report an error", receivedError)
         } finally {
             proxy.cleanup()
         }
@@ -192,6 +194,7 @@ class PostRealServerTest {
             assertTrue("Authenticated request should complete within 30s", latch.await(30, TimeUnit.SECONDS))
             assertNotNull("Should receive success response", receivedResponse)
             assertEquals(StatusResponse.Status.OK, receivedResponse!!.status)
+            assertNull("Successful authenticated request should not report an error", receivedError)
         } finally {
             proxy.cleanup()
         }
@@ -235,6 +238,65 @@ class PostRealServerTest {
             assertTrue("Token-authenticated request should complete within 30s", latch.await(30, TimeUnit.SECONDS))
             assertNotNull("Should receive success response", receivedResponse)
             assertEquals(StatusResponse.Status.OK, receivedResponse!!.status)
+            assertNull("Successful token-authenticated request should not report an error", receivedError)
+        } finally {
+            proxy.cleanup()
+        }
+    }
+
+    /**
+     * First token-authenticated POST when the SDK time service is not synchronized.
+     *
+     * Token creation must synchronize time before requesting the token, and token header
+     * generation must then succeed with the synchronized digest time.
+     */
+    @Test
+    fun tokenAuthenticatedPostSynchronizesTimeWhenNeeded() {
+        val config = loadConfigOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val proxy = PowerAuthIntegrationProxy(config, context)
+        proxy.initializePowerAuth()
+        proxy.prepareActivation()
+        proxy.powerAuth!!.timeSynchronizationService.resetTimeSynchronization()
+        assertFalse(
+            "Test requires an unsynchronized time service",
+            proxy.powerAuth!!.timeSynchronizationService.isTimeSynchronized
+        )
+
+        try {
+            val testApi = proxy.createApi(config.operationsServerUrl)
+
+            val latch = CountDownLatch(1)
+            var receivedResponse: StatusResponse? = null
+            var receivedError: ApiError? = null
+
+            testApi.post(
+                data = BaseRequest(),
+                endpoint = TestEndpoints.operationList,
+                listener = object : IApiCallResponseListener<StatusResponse> {
+                    override fun onSuccess(result: StatusResponse) {
+                        receivedResponse = result
+                        latch.countDown()
+                    }
+
+                    override fun onFailure(error: ApiError) {
+                        receivedError = error
+                        latch.countDown()
+                    }
+                }
+            )
+
+            assertTrue(
+                "Token-authenticated request should complete within 30s",
+                latch.await(30, TimeUnit.SECONDS)
+            )
+            assertNotNull("Should receive success response", receivedResponse)
+            assertEquals(StatusResponse.Status.OK, receivedResponse!!.status)
+            assertNull("Successful token-authenticated request should not report an error", receivedError)
+            assertTrue(
+                "Token-authenticated request should synchronize time",
+                proxy.powerAuth!!.timeSynchronizationService.isTimeSynchronized
+            )
         } finally {
             proxy.cleanup()
         }
