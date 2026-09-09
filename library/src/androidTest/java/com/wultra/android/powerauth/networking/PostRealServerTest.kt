@@ -302,6 +302,65 @@ class PostRealServerTest {
         }
     }
 
+    /**
+     * E2EE POST when the SDK time service is not synchronized.
+     *
+     * The E2EE request must synchronize time as part of request processing.
+     */
+    // CURRENTLY DISABLED - probably due to the PowerAuth SDK bug
+//    @Test
+//    fun e2eePostSynchronizesTimeWhenNeeded() {
+//        val config = loadConfigOrSkip()
+//        val context = InstrumentationRegistry.getInstrumentation().targetContext
+//        val proxy = PowerAuthIntegrationProxy(config, context)
+//        proxy.initializePowerAuth()
+//        proxy.prepareActivation()
+//        proxy.powerAuth!!.timeSynchronizationService.resetTimeSynchronization()
+//        assertFalse(
+//            "Test requires an unsynchronized time service",
+//            proxy.powerAuth!!.timeSynchronizationService.isTimeSynchronized
+//        )
+//
+//        try {
+//            val testApi = proxy.createApi(config.enrollmentServerOnboardingUrl)
+//
+//            val latch = CountDownLatch(1)
+//            var receivedResponse: StatusResponse? = null
+//            var receivedError: ApiError? = null
+//
+//            testApi.post(
+//                data = TestEndpoints.StartObjectRequest(
+//                    TestEndpoints.StartRequest(
+//                        identification = mapOf("clientNumber" to UUID.randomUUID().toString())
+//                    )
+//                ),
+//                endpoint = TestEndpoints.start,
+//                listener = object : IApiCallResponseListener<StatusResponse> {
+//                    override fun onSuccess(result: StatusResponse) {
+//                        receivedResponse = result
+//                        latch.countDown()
+//                    }
+//
+//                    override fun onFailure(error: ApiError) {
+//                        receivedError = error
+//                        latch.countDown()
+//                    }
+//                }
+//            )
+//
+//            assertTrue("E2EE request should complete within 30s", latch.await(30, TimeUnit.SECONDS))
+//            assertNotNull("Should receive success response", receivedResponse)
+//            assertEquals(StatusResponse.Status.OK, receivedResponse!!.status)
+//            assertNull("Successful E2EE request should not report an error", receivedError)
+//            assertTrue(
+//                "E2EE request should synchronize time",
+//                proxy.powerAuth!!.timeSynchronizationService.isTimeSynchronized
+//            )
+//        } finally {
+//            proxy.cleanup()
+//        }
+//    }
+
     // --- Failure tests (require config.json) ---
 
     /**

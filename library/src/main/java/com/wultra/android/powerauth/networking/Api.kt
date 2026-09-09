@@ -164,81 +164,43 @@ abstract class Api(
     // PRIVATE API
 
     @PublishedApi
-    internal fun synchronizeTime(completion: (Result<Unit>) -> Unit) {
-        val ts = powerAuthSDK.timeSynchronizationService
-        if (ts.isTimeSynchronized) {
-            completion(Result.success(Unit))
-        } else {
-            WPNLogger.i("Time is not synchronized, requesting synchronization first.")
-            ts.synchronizeTime(object: ITimeSynchronizationListener {
-                override fun onTimeSynchronizationSucceeded() {
-                    completion(Result.success(Unit))
-                }
-
-                override fun onTimeSynchronizationFailed(t: Throwable) {
-                    WPNLogger.e("Time failed to synchronize, stopping whole request: $t")
-                    completion(Result.failure(t))
-                }
-            })
-        }
-    }
-
-    @PublishedApi
     internal fun obtainTokenAuthenticationHeader(
         tokenName: String,
         completion: (Result<PowerAuthHttpHeader>) -> Unit
     ) {
-        // requestAccessToken reuses an existing local token or creates it with possession
-        // authentication. The header is generated afterwards so the SDK can synchronize time
-        // when needed for the token digest.
-        fun requestAccessToken() {
-            try {
-                powerAuthSDK.tokenStore.requestAccessToken(
-                    appContext,
-                    tokenName,
-                    PowerAuthAuthentication.possession(),
-                    object : IGetTokenListener {
-                        override fun onGetTokenSucceeded(token: PowerAuthToken) {
-                            try {
-                                powerAuthSDK.tokenStore.generateAuthenticationHeader(
-                                    appContext,
-                                    tokenName,
-                                    object : IGenerateTokenHeaderListener {
-                                        override fun onGenerateTokenHeaderSucceeded(header: PowerAuthHttpHeader) {
-                                            completion(Result.success(header))
-                                        }
-
-                                        override fun onGenerateTokenHeaderFailed(t: Throwable) {
-                                            completion(Result.failure(t))
-                                        }
+        try {
+            powerAuthSDK.tokenStore.requestAccessToken(
+                appContext,
+                tokenName,
+                PowerAuthAuthentication.possession(),
+                object : IGetTokenListener {
+                    override fun onGetTokenSucceeded(token: PowerAuthToken) {
+                        try {
+                            powerAuthSDK.tokenStore.generateAuthenticationHeader(
+                                appContext,
+                                tokenName,
+                                object : IGenerateTokenHeaderListener {
+                                    override fun onGenerateTokenHeaderSucceeded(header: PowerAuthHttpHeader) {
+                                        completion(Result.success(header))
                                     }
-                                )
-                            } catch (t: Throwable) {
-                                completion(Result.failure(t))
-                            }
-                        }
 
-                        override fun onGetTokenFailed(t: Throwable) {
+                                    override fun onGenerateTokenHeaderFailed(t: Throwable) {
+                                        completion(Result.failure(t))
+                                    }
+                                }
+                            )
+                        } catch (t: Throwable) {
                             completion(Result.failure(t))
                         }
                     }
-                )
-            } catch (t: Throwable) {
-                completion(Result.failure(t))
-            }
-        }
 
-        // A local token is already usable without creating it again. When no token exists,
-        // synchronize before creating one; otherwise requestAccessToken can proceed directly
-        // because generateAuthenticationHeader handles any remaining digest synchronization.
-        if (powerAuthSDK.tokenStore.hasLocalToken(appContext, tokenName) || powerAuthSDK.timeSynchronizationService.isTimeSynchronized) {
-            requestAccessToken()
-        } else {
-            synchronizeTime { result ->
-                result
-                    .onSuccess { requestAccessToken() }
-                    .onFailure { completion(Result.failure(it)) }
-            }
+                    override fun onGetTokenFailed(t: Throwable) {
+                        completion(Result.failure(t))
+                    }
+                }
+            )
+        } catch (t: Throwable) {
+            completion(Result.failure(t))
         }
     }
 
@@ -378,6 +340,31 @@ abstract class Api(
     }
 
     // DEPRECATED: retained for source and binary compatibility until the next major version.
+
+    @Deprecated(
+        "This method is no longer needed and will be removed in the next major version.",
+        level = DeprecationLevel.WARNING
+    )
+    @PublishedApi
+    internal fun synchronizeTime(completion: (Result<Unit>) -> Unit) {
+        val ts = powerAuthSDK.timeSynchronizationService
+        if (ts.isTimeSynchronized) {
+            completion(Result.success(Unit))
+        } else {
+            WPNLogger.i("Time is not synchronized, requesting synchronization first.")
+            ts.synchronizeTime(object: ITimeSynchronizationListener {
+                override fun onTimeSynchronizationSucceeded() {
+                    completion(Result.success(Unit))
+                }
+
+                override fun onTimeSynchronizationFailed(t: Throwable) {
+                    WPNLogger.e("Time failed to synchronize, stopping whole request: $t")
+                    completion(Result.failure(t))
+                }
+            })
+        }
+    }
+
     /**
      * Compatibility constructor for the removed token provider integration.
      *
