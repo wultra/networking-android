@@ -30,7 +30,6 @@ import com.wultra.android.powerauth.networking.error.ErrorResponse
 import com.wultra.android.powerauth.networking.log.WPNLogger
 import com.wultra.android.powerauth.networking.processing.GsonRequestBodyBytes
 import com.wultra.android.powerauth.networking.processing.GsonResponseBodyConverter
-import com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenListener
 import com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenProvider
 import com.wultra.android.powerauth.networking.tokens.TokenManager
 import com.wultra.android.powerauth.networking.utils.AppUtils
@@ -39,9 +38,12 @@ import com.wultra.android.powerauth.networking.utils.getCurrentLocale
 import com.wultra.android.powerauth.BuildConfig
 import io.getlime.security.powerauth.core.CoreEncryptedResponse
 import io.getlime.security.powerauth.core.CoreEncryptor
+import io.getlime.security.powerauth.networking.response.IGetTokenListener
+import io.getlime.security.powerauth.networking.response.IGenerateTokenHeaderListener
 import io.getlime.security.powerauth.networking.response.IGetEncryptorListener
 import io.getlime.security.powerauth.networking.response.ITimeSynchronizationListener
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
+import io.getlime.security.powerauth.sdk.PowerAuthHttpHeader
 import io.getlime.security.powerauth.sdk.PowerAuthSDK
 import io.getlime.security.powerauth.sdk.PowerAuthToken
 import okhttp3.*
@@ -63,7 +65,6 @@ interface IApiCallResponseListener<T> {
  * @param gsonBuilder Builder that will be used for request/response (de)serialization.
  * @param appContext Application context. The library internally uses [Context.applicationContext]
  * to avoid holding a reference to an Activity or other short-lived context.
- * @param tokenProvider Token provider for token-authenticated requests.
  * @param userAgent Default user agent for each request. Note that such value might be "overridden"
  * on per-request basis. Default value is `libraryDefault`.
  */
@@ -73,7 +74,6 @@ abstract class Api(
     @PublishedApi internal val powerAuthSDK: PowerAuthSDK,
     @PublishedApi internal val gsonBuilder: GsonBuilder,
     appContext: Context,
-    tokenProvider: IPowerAuthTokenProvider? = null,
     @PublishedApi internal val userAgent: UserAgent = UserAgent.libraryDefault(appContext)
 ) {
 
@@ -87,7 +87,14 @@ abstract class Api(
 
     @PublishedApi internal val okHttpClient: OkHttpClient
 
-    @PublishedApi internal val tokenProvider: IPowerAuthTokenProvider = tokenProvider ?: TokenManager(appContext, powerAuthSDK.tokenStore)
+    // DEPRECATED: retained for binary compatibility with previously inlined token posts.
+    @PublishedApi
+    @Deprecated(
+        "Token providers are ignored and will be removed in the next major version.",
+        level = DeprecationLevel.WARNING
+    )
+    @Suppress("DEPRECATION")
+    internal val tokenProvider: IPowerAuthTokenProvider = TokenManager(appContext, powerAuthSDK.tokenStore)
 
     init {
         val builder = okHttpClient.newBuilder()
@@ -142,36 +149,14 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
-        // note: remove time synchronization from here after the https://github.com/wultra/networking-android/issues/67 is implemented
-        // then, use powerAuthTokenStore.generateAuthenticationHeader.
-        synchronizeTime {
-            it.onSuccess {
-                tokenProvider.getTokenAsync(
-                    endpoint.tokenName,
-                    object : IPowerAuthTokenListener {
-                        override fun onReceived(token: PowerAuthToken) {
-
-                            val bodyBytes = getBodyBytes(data)
-                            val newHeaders = HashMap(headers.orEmpty())
-
-                            try {
-                                val tokenHeader = token.generateTokenHeader()
-                                newHeaders[tokenHeader.key] = tokenHeader.value
-                            } catch (e: Exception) {
-                                listener.onFailure(ApiError(e))
-                                return
-                            }
-
-                            makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
-                        }
-
-                        override fun onFailed(e: Throwable) {
-                            listener.onFailure(ApiError(e))
-                        }
-                    }
-                )
-            }.onFailure { e ->
-                listener.onFailure(ApiError(e))
+        obtainTokenAuthenticationHeader(endpoint.tokenName) { result ->
+            result.onFailure {
+                listener.onFailure(ApiError(it))
+            }.onSuccess { tokenHeader ->
+                val bodyBytes = getBodyBytes(data)
+                val newHeaders = HashMap(headers.orEmpty())
+                newHeaders[tokenHeader.key] = tokenHeader.value
+                makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
             }
         }
     }
@@ -179,22 +164,43 @@ abstract class Api(
     // PRIVATE API
 
     @PublishedApi
-    internal fun synchronizeTime(completion: (Result<Unit>) -> Unit) {
-        val ts = powerAuthSDK.timeSynchronizationService
-        if (ts.isTimeSynchronized) {
-            completion(Result.success(Unit))
-        } else {
-            WPNLogger.i("Time is not synchronized, requesting synchronization first.")
-            ts.synchronizeTime(object: ITimeSynchronizationListener {
-                override fun onTimeSynchronizationSucceeded() {
-                    completion(Result.success(Unit))
-                }
+    internal fun obtainTokenAuthenticationHeader(
+        tokenName: String,
+        completion: (Result<PowerAuthHttpHeader>) -> Unit
+    ) {
+        try {
+            powerAuthSDK.tokenStore.requestAccessToken(
+                appContext,
+                tokenName,
+                PowerAuthAuthentication.possession(),
+                object : IGetTokenListener {
+                    override fun onGetTokenSucceeded(token: PowerAuthToken) {
+                        try {
+                            powerAuthSDK.tokenStore.generateAuthenticationHeader(
+                                appContext,
+                                tokenName,
+                                object : IGenerateTokenHeaderListener {
+                                    override fun onGenerateTokenHeaderSucceeded(header: PowerAuthHttpHeader) {
+                                        completion(Result.success(header))
+                                    }
 
-                override fun onTimeSynchronizationFailed(t: Throwable) {
-                    WPNLogger.e("Time failed to synchronize, stopping whole request: $t")
-                    completion(Result.failure(t))
+                                    override fun onGenerateTokenHeaderFailed(t: Throwable) {
+                                        completion(Result.failure(t))
+                                    }
+                                }
+                            )
+                        } catch (t: Throwable) {
+                            completion(Result.failure(t))
+                        }
+                    }
+
+                    override fun onGetTokenFailed(t: Throwable) {
+                        completion(Result.failure(t))
+                    }
                 }
-            })
+            )
+        } catch (t: Throwable) {
+            completion(Result.failure(t))
         }
     }
 
@@ -332,6 +338,60 @@ abstract class Api(
             E2EEConfiguration.NOT_ENCRYPTED -> callback(Result.success(null))
         }
     }
+
+    // DEPRECATED: retained for source and binary compatibility until the next major version.
+
+    @Deprecated(
+        "This method is no longer needed and will be removed in the next major version.",
+        level = DeprecationLevel.WARNING
+    )
+    @PublishedApi
+    internal fun synchronizeTime(completion: (Result<Unit>) -> Unit) {
+        val ts = powerAuthSDK.timeSynchronizationService
+        if (ts.isTimeSynchronized) {
+            completion(Result.success(Unit))
+        } else {
+            WPNLogger.i("Time is not synchronized, requesting synchronization first.")
+            ts.synchronizeTime(object: ITimeSynchronizationListener {
+                override fun onTimeSynchronizationSucceeded() {
+                    completion(Result.success(Unit))
+                }
+
+                override fun onTimeSynchronizationFailed(t: Throwable) {
+                    WPNLogger.e("Time failed to synchronize, stopping whole request: $t")
+                    completion(Result.failure(t))
+                }
+            })
+        }
+    }
+
+    /**
+     * Compatibility constructor for the removed token provider integration.
+     *
+     * The token provider is ignored. Token-authenticated requests always use the SDK token store.
+     */
+    @Deprecated(
+        "The token provider is ignored and will be removed in the next major version.",
+        level = DeprecationLevel.WARNING
+    )
+    @Suppress("DEPRECATION")
+    constructor(
+        baseUrl: String,
+        okHttpClient: OkHttpClient,
+        powerAuthSDK: PowerAuthSDK,
+        gsonBuilder: GsonBuilder,
+        appContext: Context,
+        @Suppress("UNUSED_PARAMETER", "DEPRECATION")
+        tokenProvider: IPowerAuthTokenProvider?,
+        userAgent: UserAgent = UserAgent.libraryDefault(appContext)
+    ) : this(
+        baseUrl,
+        okHttpClient,
+        powerAuthSDK,
+        gsonBuilder,
+        appContext,
+        userAgent
+    )
 }
 
 interface OkHttpBuilderInterceptor {

@@ -66,7 +66,7 @@ This class takes several parameters:
 - `powerAuthSDK` - `PowerAuthSDK` instance that will sign requests
 - `gsonBuilder` - GsonBuilder for (de)serialization
 - `appContext` - Application Context
-- `tokenProvider` - Optional Token Provider in case you have several services and want to share the token logic.
+- `tokenProvider` - Deprecated and ignored. Token-authenticated requests use the `PowerAuthSDK.tokenStore`, which is shared automatically.
 - `userAgent` - Custom user-agent that will be added as an HTTP header to each request.
 
 <!-- begin box info -->
@@ -308,6 +308,8 @@ Log listener comes in handy when you want to log into a file or some online serv
 ## Changelog
 
 ### TBA
+
+- Token-authenticated requests now use `PowerAuthSDK.tokenStore`; the `tokenProvider` constructor parameter and token provider interfaces are deprecated and retained only for source compatibility.
 
 ### 2.0.0
 

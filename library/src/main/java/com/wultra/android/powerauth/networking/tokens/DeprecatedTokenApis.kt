@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Wultra s.r.o.
+ * Copyright 2026 Wultra s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -10,10 +10,17 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions
- * and limitations under the License.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
+/**
+ * Deprecated token provider APIs retained for source and binary compatibility. These APIs will be
+ * removed in the next major version.
+ *
+ * New token-authenticated requests use [io.getlime.security.powerauth.sdk.PowerAuthSDK.tokenStore]
+ * directly. The compatibility provider is retained only for previously compiled clients.
+ */
 package com.wultra.android.powerauth.networking.tokens
 
 import android.content.Context
@@ -22,10 +29,35 @@ import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import io.getlime.security.powerauth.sdk.PowerAuthToken
 import io.getlime.security.powerauth.sdk.PowerAuthTokenStore
 
+@Deprecated(
+    "Token providers are ignored and will be removed in the next major version. " +
+        "Token-authenticated requests use PowerAuthSDK.tokenStore.",
+    level = DeprecationLevel.WARNING
+)
+interface IPowerAuthTokenProvider {
+    fun getTokenAsync(tokenName: String, listener: IPowerAuthTokenListener)
+}
+
+@Deprecated(
+    "Token listeners are retained only for compatibility, are never invoked by the library, " +
+        "and will be removed in the next major version.",
+    level = DeprecationLevel.WARNING
+)
+interface IPowerAuthTokenListener {
+    fun onReceived(token: PowerAuthToken)
+    fun onFailed(e: Throwable)
+}
+
 /**
- * Manager for PowerAuth token header handling.
- * Default internal implementation of [IPowerAuthTokenProvider]
+ * Deprecated compatibility implementation for the former [IPowerAuthTokenProvider] default.
+ *
+ * New library code uses [PowerAuthTokenStore] directly. This class remains available only for
+ * previously compiled inline token requests and will be removed in the next major version.
  */
+@Deprecated(
+    "TokenManager is retained only for binary compatibility and will be removed in the next major version.",
+    level = DeprecationLevel.WARNING
+)
 internal class TokenManager(
     appContext: Context,
     private val powerAuthTokenStore: PowerAuthTokenStore
@@ -38,12 +70,11 @@ internal class TokenManager(
         if (localPowerAuthToken != null) {
             listener.onReceived(localPowerAuthToken)
         } else {
-            val authentication = PowerAuthAuthentication.possession()
             try {
                 powerAuthTokenStore.requestAccessToken(
                     appContext,
                     tokenName,
-                    authentication,
+                    PowerAuthAuthentication.possession(),
                     object : IGetTokenListener {
                         override fun onGetTokenSucceeded(token: PowerAuthToken) {
                             listener.onReceived(token)

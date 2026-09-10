@@ -14,6 +14,8 @@
  * and limitations under the License.
  */
 
+import org.gradle.api.tasks.testing.Test
+
 plugins {
     id("com.android.library")
     kotlin("android")
@@ -67,6 +69,12 @@ android {
 
     // Make ktlint run before build
     tasks.getByName("preBuild").dependsOn("ktlint")
+}
+
+tasks.withType<Test>().configureEach {
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
 }
 
 dependencies {
