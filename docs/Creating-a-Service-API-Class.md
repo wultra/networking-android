@@ -34,19 +34,19 @@ class MyServiceApi(
 
     companion object {
         // This endpoint points to https://my.serviceurl.com/api/auth/token/app/user/sample
-        private val sampleEndpoint1 = EndpointAuthenticated<SampleRequest, SampleResponse>("api/my/endpoint/user/sample", "/user/get", SampleResponse::class.java)
+        private val sampleEndpoint1 = EndpointAuthenticated<SampleRequest, SampleResponse>("api/my/endpoint/user/sample", "/user/get", SampleRequest::class.java, SampleResponse::class.java)
         // This endpoint points to https://my.serviceurl.com/api/auth/token/app/user/sample2
-        private val sampleEndpoint2 = EndpointAuthenticatedWithToken<SampleRequest, SampleResponse>("api/my/endpoint/user/sample2", "possession_universal", SampleResponse::class.java)
+        private val sampleEndpoint2 = EndpointAuthenticatedWithToken<SampleRequest, SampleResponse>("api/my/endpoint/user/sample2", "possession_universal", SampleRequest::class.java, SampleResponse::class.java)
     }
     
     /** Get the username with a token-authenticated request. */
     fun sample1(userID: String, listener: IApiCallResponseListener<SampleResponse>) {
-        post(SampleRequest(SampleRequestData(userID)), sampleEndpoint1, null, null, null, listener)
+        post(SampleRequest(SampleRequestData(userID)), sampleEndpoint2, listener = listener)
     }
     
     /** Get the username with a user-authenticated request. */
     fun sample2(userID: String, authentication: PowerAuthAuthentication, listener: IApiCallResponseListener<SampleResponse>) {
-        post(SampleRequest(SampleRequestData(userID)), sampleEndpoint2, authentication, null, null, null, listener)
+        post(SampleRequest(SampleRequestData(userID)), sampleEndpoint1, authentication, listener = listener)
     }
 }
 ```

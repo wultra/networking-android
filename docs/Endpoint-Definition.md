@@ -31,7 +31,7 @@ For endpoints that are __authenticated__ by PowerAuth authentication code and ca
 Example:
 
 ```kotlin
-val myAuthenticatedEndpoint = EndpointAuthenticated<MyRequest, MyResponse>("api/my/endpoint/path", "/endpoint/uriId", MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
+val myAuthenticatedEndpoint = EndpointAuthenticated<MyRequest, MyResponse>("api/my/endpoint/path", "/endpoint/uriId", MyRequest::class.java, MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
 // uriId is defined by the endpoint issuer - ask your server developer/provider
 ```
 
@@ -44,7 +44,7 @@ More info for token-based authentication [can be found here](https://github.com/
 Example:
 
 ```kotlin
-val myTokenEndpoint = EndpointAuthenticatedWithToken<MyRequest, MyResponse>("api/my/endpoint/path", "possession_universal", MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
+val myTokenEndpoint = EndpointAuthenticatedWithToken<MyRequest, MyResponse>("api/my/endpoint/path", "possession_universal", MyRequest::class.java, MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
 
 // token name (`possession_universal` in this case) is the name of the token as stored in the PowerAuthSDK
 // more info can be found in the PowerAuthSDK documentation
@@ -59,5 +59,5 @@ For endpoints that are __not authenticated__ by PowerAuth authentication code bu
 Example:
 
 ```kotlin
-val myBasicEndpoint = EndpointBasic<MyRequest, MyResponse>("api/my/endpoint/path", MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
+val myBasicEndpoint = EndpointBasic<MyRequest, MyResponse>("api/my/endpoint/path", MyRequest::class.java, MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
 ```

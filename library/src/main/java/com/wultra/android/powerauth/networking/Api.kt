@@ -111,7 +111,7 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
-        makeCall(getBodyBytes(data), endpoint, HashMap(headers.orEmpty()), okHttpInterceptor, listener)
+        makeCall(getBodyBytes(data, endpoint.requestType), endpoint, HashMap(headers.orEmpty()), okHttpInterceptor, listener)
     }
 
     fun <TRequestData: BaseRequest, TResponseData: StatusResponse> post(
@@ -123,7 +123,7 @@ abstract class Api(
         listener: IApiCallResponseListener<TResponseData>
     ) {
 
-        val bodyBytes = getBodyBytes(data)
+        val bodyBytes = getBodyBytes(data, endpoint.requestType)
         val newHeaders = HashMap(headers.orEmpty())
 
         try {
@@ -153,7 +153,7 @@ abstract class Api(
             result.onFailure {
                 listener.onFailure(ApiError(it))
             }.onSuccess { tokenHeader ->
-                val bodyBytes = getBodyBytes(data)
+                val bodyBytes = getBodyBytes(data, endpoint.requestType)
                 val newHeaders = HashMap(headers.orEmpty())
                 newHeaders[tokenHeader.key] = tokenHeader.value
                 makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
@@ -204,9 +204,9 @@ abstract class Api(
         }
     }
 
-    private fun getBodyBytes(data: BaseRequest): ByteArray {
+    private fun <TRequestData: BaseRequest> getBodyBytes(data: TRequestData, requestType: Class<TRequestData>): ByteArray {
         val requestGson = gsonBuilder.create()
-        val requestTypeAdapter = getTypeAdapter(requestGson, data.javaClass)
+        val requestTypeAdapter = getTypeAdapter(requestGson, requestType)
         return GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
     }
 
