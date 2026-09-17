@@ -38,24 +38,30 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
 object TestEndpoints {
 
     /** Simple unauthenticated POST to `/posts` (e.g. JSONPlaceholder). */
-    val posts = EndpointBasic<BaseRequest, StatusResponse>("/posts")
+    val posts = EndpointBasic<BaseRequest, StatusResponse>("/posts", BaseRequest::class.java, StatusResponse::class.java)
 
     /** Onboarding start with application-scope E2EE. */
     val start = EndpointBasic<StartObjectRequest, StatusResponse>(
         "/api/onboarding/start",
+        StartObjectRequest::class.java,
+        StatusResponse::class.java,
         E2EEConfiguration.APPLICATION_SCOPE
     )
 
     /** Authenticated endpoint for fetching operation history (uriId = `/operation/history`). */
     val history = EndpointAuthenticated<BaseRequest, StatusResponse>(
         "/api/auth/token/app/operation/history",
-        "/operation/history"
+        "/operation/history",
+        BaseRequest::class.java,
+        StatusResponse::class.java
     )
 
     /** Token-authenticated endpoint for listing pending operations. */
     val operationList = EndpointAuthenticatedWithToken<BaseRequest, StatusResponse>(
         "/api/auth/token/app/operation/list",
-        "possession_universal"
+        "possession_universal",
+        BaseRequest::class.java,
+        StatusResponse::class.java
     )
 
     /**
@@ -64,6 +70,8 @@ object TestEndpoints {
      */
     val failingStart = EndpointBasic<BaseRequest, StatusResponse>(
         "/api/onboarding/start",
+        BaseRequest::class.java,
+        StatusResponse::class.java,
         E2EEConfiguration.ACTIVATION_SCOPE
     )
 

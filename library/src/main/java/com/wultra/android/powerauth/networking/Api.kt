@@ -69,15 +69,15 @@ interface IApiCallResponseListener<T> {
  * on per-request basis. Default value is `libraryDefault`.
  */
 abstract class Api(
-    @PublishedApi internal val baseUrl: String,
+    private val baseUrl: String,
     okHttpClient: OkHttpClient,
-    @PublishedApi internal val powerAuthSDK: PowerAuthSDK,
-    @PublishedApi internal val gsonBuilder: GsonBuilder,
+    private val powerAuthSDK: PowerAuthSDK,
+    private val gsonBuilder: GsonBuilder,
     appContext: Context,
-    @PublishedApi internal val userAgent: UserAgent = UserAgent.libraryDefault(appContext)
+    private val userAgent: UserAgent = UserAgent.libraryDefault(appContext)
 ) {
 
-    @PublishedApi internal val appContext: Context = appContext.applicationContext
+    private val appContext: Context = appContext.applicationContext
 
     /**
      * Language sent in request header. Default value is "en".
@@ -85,7 +85,7 @@ abstract class Api(
     @Volatile
     var acceptLanguage = "en"
 
-    @PublishedApi internal val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient
 
     // DEPRECATED: retained for binary compatibility with previously inlined token posts.
     @PublishedApi
@@ -104,17 +104,17 @@ abstract class Api(
 
     // PUBLIC API
 
-    inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
+    fun <TRequestData: BaseRequest, TResponseData: StatusResponse> post(
         data: TRequestData,
         endpoint: EndpointBasic<TRequestData, TResponseData>,
         headers: HashMap<String, String>? = null,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
-        makeCall(getBodyBytes(data), endpoint, HashMap(headers.orEmpty()), okHttpInterceptor, listener)
+        makeCall(getBodyBytes(data, endpoint.requestType), endpoint, HashMap(headers.orEmpty()), okHttpInterceptor, listener)
     }
 
-    inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
+    fun <TRequestData: BaseRequest, TResponseData: StatusResponse> post(
         data: TRequestData,
         endpoint: EndpointAuthenticated<TRequestData, TResponseData>,
         authentication: PowerAuthAuthentication,
@@ -123,7 +123,7 @@ abstract class Api(
         listener: IApiCallResponseListener<TResponseData>
     ) {
 
-        val bodyBytes = getBodyBytes(data)
+        val bodyBytes = getBodyBytes(data, endpoint.requestType)
         val newHeaders = HashMap(headers.orEmpty())
 
         try {
@@ -142,7 +142,7 @@ abstract class Api(
         makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
     }
 
-    inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> post(
+    fun <TRequestData: BaseRequest, TResponseData: StatusResponse> post(
         data: TRequestData,
         endpoint: EndpointAuthenticatedWithToken<TRequestData, TResponseData>,
         headers: HashMap<String, String>? = null,
@@ -153,7 +153,7 @@ abstract class Api(
             result.onFailure {
                 listener.onFailure(ApiError(it))
             }.onSuccess { tokenHeader ->
-                val bodyBytes = getBodyBytes(data)
+                val bodyBytes = getBodyBytes(data, endpoint.requestType)
                 val newHeaders = HashMap(headers.orEmpty())
                 newHeaders[tokenHeader.key] = tokenHeader.value
                 makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
@@ -204,17 +204,15 @@ abstract class Api(
         }
     }
 
-    @PublishedApi
-    internal inline fun <reified TRequestData: BaseRequest> getBodyBytes(data: TRequestData): ByteArray {
+    private fun <TRequestData: BaseRequest> getBodyBytes(data: TRequestData, requestType: Class<TRequestData>): ByteArray {
         val requestGson = gsonBuilder.create()
-        val requestTypeAdapter = getTypeAdapter<TRequestData>(requestGson)
+        val requestTypeAdapter = getTypeAdapter(requestGson, requestType)
         return GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
     }
 
-    @PublishedApi
-    internal inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> makeCall(
+    private fun <TResponseData: StatusResponse> makeCall(
         bodyBytes: ByteArray,
-        endpoint: Endpoint<TRequestData, TResponseData>,
+        endpoint: Endpoint<*, TResponseData>,
         headers: HashMap<String, String>,
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
@@ -288,14 +286,14 @@ abstract class Api(
                                     }
 
                                     val gson = gsonBuilder.create()
-                                    val typeAdapter = getTypeAdapter<TResponseData>(gson)
+                                    val typeAdapter = getTypeAdapter(gson, endpoint.responseType)
                                     val converter = GsonResponseBodyConverter(gson, typeAdapter)
                                     listener.onSuccess(converter.convert(resData))
                                 } else {
                                     val bodyBytes = response.body?.bytes()
                                     val errorResponse = bodyBytes?.let {
                                         val gson = gsonBuilder.create()
-                                        val typeAdapter = getTypeAdapter<ErrorResponse>(gson)
+                                        val typeAdapter = getTypeAdapter(gson, ErrorResponse::class.java)
                                         GsonResponseBodyConverter(gson, typeAdapter).convert(it)
                                     }
                                     listener.onFailure(ApiError(ApiHttpException(response, errorResponse)))
@@ -311,15 +309,13 @@ abstract class Api(
         }
     }
 
-    @PublishedApi
-    internal inline fun <reified T> getTypeAdapter(gson: Gson): TypeAdapter<T> {
-        return gson.getAdapter(TypeToken.get(T::class.java))
+    private fun <T> getTypeAdapter(gson: Gson, type: Class<T>): TypeAdapter<T> {
+        return gson.getAdapter(TypeToken.get(type))
     }
 
-    @PublishedApi
-    internal inline fun <reified TRequestData: BaseRequest, reified TResponseData: StatusResponse> getEncryptor(
-        endpoint: Endpoint<TRequestData, TResponseData>,
-        crossinline callback: (Result<CoreEncryptor?>) -> Unit
+    private fun getEncryptor(
+        endpoint: Endpoint<*, *>,
+        callback: (Result<CoreEncryptor?>) -> Unit
     ) {
 
         val listener = object : IGetEncryptorListener {
@@ -398,7 +394,7 @@ interface OkHttpBuilderInterceptor {
     fun intercept(builder: OkHttpClient.Builder)
 }
 
-class UserAgent internal constructor(@PublishedApi internal val value: String? = null) {
+class UserAgent internal constructor(internal val value: String? = null) {
     companion object {
         fun libraryDefault(appContext: Context): UserAgent {
             return try {
