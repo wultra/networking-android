@@ -25,10 +25,13 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
  * @param TRequestData Type of the request data.
  * @param TResponseData Type of the response data.
  * @property endpointUrlPath URL path for the endpoint. For example "/my/custom/endpoint".
+ * @property responseType Class of the response data. Used to deserialize the response
+ * without relying on reified generics (which would require `inline` and break ABI compatibility).
  * @property e2eeConfiguration End-to-end encryption configuration for the endpoint.
  */
 abstract class Endpoint<TRequestData: BaseRequest, TResponseData: StatusResponse>(
     val endpointUrlPath: String,
+    val responseType: Class<TResponseData>,
     val e2eeConfiguration: E2EEConfiguration
 )
 
@@ -38,12 +41,14 @@ abstract class Endpoint<TRequestData: BaseRequest, TResponseData: StatusResponse
  * @param TRequestData Type of the request data.
  * @param TResponseData Type of the response data.
  * @param endpointUrlPath URL path for the endpoint. For example "/my/custom/endpoint".
+ * @param responseType Class of the response data, for example `MyResponse::class.java`.
  * @param e2eeConfiguration End-to-end encryption configuration for the endpoint. `NOT_ENCRYPTED` by default
  */
 class EndpointBasic<TRequestData: BaseRequest, TResponseData: StatusResponse>(
     endpointUrlPath: String,
+    responseType: Class<TResponseData>,
     e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED
-): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
+): Endpoint<TRequestData, TResponseData>(endpointUrlPath, responseType, e2eeConfiguration)
 
 /**
  * Endpoint authenticated with PowerAuth authentication code.
@@ -52,13 +57,15 @@ class EndpointBasic<TRequestData: BaseRequest, TResponseData: StatusResponse>(
  * @param TResponseData Type of the response data.
  * @param endpointUrlPath URL path for the endpoint. For example "/my/custom/endpoint".
  * @property uriId Endpoint ID. Note that this is different from endpoint URL
+ * @param responseType Class of the response data, for example `MyResponse::class.java`.
  * @param e2eeConfiguration End-to-end encryption configuration for the endpoint.
  */
 class EndpointAuthenticated<TRequestData: BaseRequest, TResponseData: StatusResponse>(
     endpointUrlPath: String,
     val uriId: String,
+    responseType: Class<TResponseData>,
     e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED
-): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
+): Endpoint<TRequestData, TResponseData>(endpointUrlPath, responseType, e2eeConfiguration)
 
 @Deprecated("Renamed to EndpointAuthenticated", replaceWith = ReplaceWith("EndpointAuthenticated<TRequestData, TResponseData>"))
 typealias EndpointSigned<TRequestData, TResponseData> = EndpointAuthenticated<TRequestData, TResponseData>
@@ -70,13 +77,15 @@ typealias EndpointSigned<TRequestData, TResponseData> = EndpointAuthenticated<TR
  * @param TResponseData Type of the response data.
  * @param endpointUrlPath  URL path for the endpoint. For example "/my/custom/endpoint".
  * @property tokenName Name of the token used for authentication code.
+ * @param responseType Class of the response data, for example `MyResponse::class.java`.
  * @param e2eeConfiguration End-to-end encryption configuration for the endpoint.
  */
 class EndpointAuthenticatedWithToken<TRequestData: BaseRequest, TResponseData: StatusResponse>(
     endpointUrlPath: String,
     val tokenName: String,
+    responseType: Class<TResponseData>,
     e2eeConfiguration: E2EEConfiguration = E2EEConfiguration.NOT_ENCRYPTED
-): Endpoint<TRequestData, TResponseData>(endpointUrlPath, e2eeConfiguration)
+): Endpoint<TRequestData, TResponseData>(endpointUrlPath, responseType, e2eeConfiguration)
 
 @Deprecated("Renamed to EndpointAuthenticatedWithToken", replaceWith = ReplaceWith("EndpointAuthenticatedWithToken<TRequestData, TResponseData>"))
 typealias EndpointSignedWithToken<TRequestData, TResponseData> = EndpointAuthenticatedWithToken<TRequestData, TResponseData>
