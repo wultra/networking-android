@@ -41,12 +41,12 @@ class MyServiceApi(
     
     /** Get the username with a token-authenticated request. */
     fun sample1(userID: String, listener: IApiCallResponseListener<SampleResponse>) {
-        post(SampleRequest(SampleRequestData(userID)), sampleEndpoint1, null, null, null, listener)
+        post(SampleRequest(SampleRequestData(userID)), sampleEndpoint2, null, null, listener)
     }
     
     /** Get the username with a user-authenticated request. */
     fun sample2(userID: String, authentication: PowerAuthAuthentication, listener: IApiCallResponseListener<SampleResponse>) {
-        post(SampleRequest(SampleRequestData(userID)), sampleEndpoint2, authentication, null, null, null, listener)
+        post(SampleRequest(SampleRequestData(userID)), sampleEndpoint1, authentication, null, null, listener)
     }
 }
 ```

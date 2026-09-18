@@ -234,9 +234,9 @@ abstract class Api(
         authentication: PowerAuthAuthentication,
         headers: HashMap<String, String>?
     ): Result<Pair<ByteArray, HashMap<String, String>>> {
-        val bodyBytes = getBodyBytes(data)
-        val newHeaders = HashMap(headers.orEmpty())
         return try {
+            val bodyBytes = getBodyBytes(data)
+            val newHeaders = HashMap(headers.orEmpty())
             val authorizationHeader = powerAuthSDK.authenticationHeaderForRequestWithBody(
                 authentication,
                 "POST",
@@ -390,7 +390,16 @@ abstract class Api(
         // shared serial executor forever.
         val clientConfig = powerAuthSDK.clientConfiguration
         val timeoutMillis = clientConfig.connectionTimeout.toLong() + clientConfig.readTimeout.toLong()
-        if (!latch.await(timeoutMillis, TimeUnit.MILLISECONDS)) {
+        val timedOut = try {
+            !latch.await(timeoutMillis, TimeUnit.MILLISECONDS)
+        } catch (e: InterruptedException) {
+            // Restore the interrupt status for callers/executors that check it, then still
+            // report the failure so the default async API never leaves the request pending.
+            Thread.currentThread().interrupt()
+            listener.onFailure(ApiError(e))
+            return
+        }
+        if (timedOut) {
             listener.onFailure(ApiError(TimeoutException("Timed out waiting for the E2EE encryptor")))
             return
         }

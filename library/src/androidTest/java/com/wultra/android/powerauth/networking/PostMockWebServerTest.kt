@@ -18,6 +18,10 @@ package com.wultra.android.powerauth.networking
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.google.gson.TypeAdapter
+import com.google.gson.annotations.JsonAdapter
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonWriter
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.error.ApiError
@@ -44,6 +48,24 @@ import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+
+/**
+ * Request whose body serialization always throws, used to verify that a failure while
+ * building the request body (e.g. a Gson adapter error) is reported via [ApiError] instead
+ * of escaping uncaught.
+ */
+@JsonAdapter(ThrowingBodyRequest.Adapter::class)
+class ThrowingBodyRequest : BaseRequest() {
+    class Adapter : TypeAdapter<ThrowingBodyRequest>() {
+        override fun write(out: JsonWriter, value: ThrowingBodyRequest?) {
+            throw IllegalStateException("Simulated request body serialization failure")
+        }
+
+        override fun read(reader: JsonReader): ThrowingBodyRequest {
+            throw UnsupportedOperationException()
+        }
+    }
+}
 
 /**
  * MockWebServer-based tests for the [Api.post] pipeline.
@@ -576,6 +598,44 @@ class PostMockWebServerTest {
         assertTrue(
             "Failure should originate from getSerialExecutor()'s missing-activation check",
             receivedError!!.e is PowerAuthErrorException
+        )
+        assertNull("No request should reach the server", server.takeRequest(1, TimeUnit.SECONDS))
+    }
+
+    /**
+     * A failure while building the request body (e.g. a Gson adapter throwing) must be
+     * reported via [ApiError], not escape [Api.post] uncaught - this exercises the header/body
+     * preparation shared by both [RequestConcurrencyStrategy] values.
+     */
+    @Test
+    fun authenticatedPostConcurrentAllReportsBodySerializationFailureAsApiError() {
+        api.concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL
+
+        val latch = CountDownLatch(1)
+        var receivedError: ApiError? = null
+
+        api.post(
+            data = ThrowingBodyRequest(),
+            endpoint = EndpointAuthenticated<ThrowingBodyRequest, StatusResponse>("/api/secure", "/api/secure", StatusResponse::class.java),
+            authentication = PowerAuthAuthentication.possession(),
+            listener = object : IApiCallResponseListener<StatusResponse> {
+                override fun onSuccess(result: StatusResponse) {
+                    fail("Should not succeed when request body serialization fails")
+                    latch.countDown()
+                }
+
+                override fun onFailure(error: ApiError) {
+                    receivedError = error
+                    latch.countDown()
+                }
+            }
+        )
+
+        assertTrue("Should fail within 10s, not hang or crash", latch.await(10, TimeUnit.SECONDS))
+        assertNotNull("Body serialization failure should be reported via onFailure", receivedError)
+        assertTrue(
+            "Failure should originate from the request body serialization",
+            receivedError!!.e is IllegalStateException
         )
         assertNull("No request should reach the server", server.takeRequest(1, TimeUnit.SECONDS))
     }

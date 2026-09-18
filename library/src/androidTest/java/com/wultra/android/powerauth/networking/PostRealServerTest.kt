@@ -18,6 +18,10 @@ package com.wultra.android.powerauth.networking
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.google.gson.TypeAdapter
+import com.google.gson.annotations.JsonAdapter
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonWriter
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.error.ApiError
@@ -44,6 +48,29 @@ import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+
+/**
+ * Request that sets the current thread's interrupt flag while its body is serialized.
+ *
+ * Used to deterministically reproduce interruption of the SERIAL_AUTHENTICATED runnable
+ * while it is blocked in `CountDownLatch.await` inside `Api.makeBlockingCall`: since the
+ * flag is set on the runnable's own thread during body serialization (which always runs
+ * before the `await` call), the subsequent `await` throws `InterruptedException`
+ * immediately, regardless of thread-pool scheduling or network timing.
+ */
+@JsonAdapter(SelfInterruptingRequest.Adapter::class)
+class SelfInterruptingRequest : BaseRequest() {
+    class Adapter : TypeAdapter<SelfInterruptingRequest>() {
+        override fun write(out: JsonWriter, value: SelfInterruptingRequest?) {
+            Thread.currentThread().interrupt()
+            out.beginObject().endObject()
+        }
+
+        override fun read(reader: JsonReader): SelfInterruptingRequest {
+            throw UnsupportedOperationException()
+        }
+    }
+}
 
 /**
  * Real-server integration tests for the [Api.post] pipeline.
@@ -633,6 +660,116 @@ class PostRealServerTest {
             assertEquals(
                 ApiErrorCode.POWERAUTH_AUTH_FAIL,
                 httpException.errorResponse!!.responseObject.errorCode
+            )
+        } finally {
+            proxy.cleanup()
+        }
+    }
+
+    // --- SERIAL_AUTHENTICATED runnable failure-handling tests ---
+    //
+    // These require a real activation so that `PowerAuthSDK.getSerialExecutor()` actually
+    // schedules the request's runnable instead of throwing synchronously for a missing
+    // activation (see PostMockWebServerTest.authenticatedPostWithSerialStrategyReportsMissingActivationAsApiError).
+
+    /**
+     * A failure while building the request body inside the SERIAL_AUTHENTICATED runnable
+     * (submitted to `PowerAuthSDK.getSerialExecutor()`) must be reported via [ApiError],
+     * not escape the executor's task uncaught and leave the request hanging.
+     */
+    @Test
+    fun authenticatedPostSerialStrategyReportsBodySerializationFailureAsApiError() {
+        val config = loadConfigOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val proxy = PowerAuthIntegrationProxy(config, context)
+        proxy.initializePowerAuth()
+        proxy.prepareActivation()
+
+        try {
+            val testApi = proxy.createApi(config.operationsServerUrl)
+            assertEquals(RequestConcurrencyStrategy.SERIAL_AUTHENTICATED, testApi.concurrencyStrategy)
+
+            val latch = CountDownLatch(1)
+            var receivedError: ApiError? = null
+
+            testApi.post(
+                data = ThrowingBodyRequest(),
+                endpoint = EndpointAuthenticated<ThrowingBodyRequest, StatusResponse>(
+                    "/api/auth/token/app/operation/history",
+                    "/operation/history",
+                    StatusResponse::class.java
+                ),
+                authentication = PowerAuthAuthentication.possessionWithPassword(proxy.pin),
+                listener = object : IApiCallResponseListener<StatusResponse> {
+                    override fun onSuccess(result: StatusResponse) {
+                        fail("Should not succeed when request body serialization fails")
+                        latch.countDown()
+                    }
+
+                    override fun onFailure(error: ApiError) {
+                        receivedError = error
+                        latch.countDown()
+                    }
+                }
+            )
+
+            assertTrue("Should fail within 10s, not hang or crash the serial executor", latch.await(10, TimeUnit.SECONDS))
+            assertNotNull("Body serialization failure should be reported via onFailure", receivedError)
+            assertTrue(
+                "Failure should originate from the request body serialization",
+                receivedError!!.e is IllegalStateException
+            )
+        } finally {
+            proxy.cleanup()
+        }
+    }
+
+    /**
+     * Interrupting the thread that runs the SERIAL_AUTHENTICATED runnable while it is
+     * blocked in `CountDownLatch.await` (inside `Api.makeBlockingCall`) must be reported via
+     * [ApiError] instead of leaving the request pending forever.
+     */
+    @Test
+    fun authenticatedPostSerialStrategyReportsInterruptionAsApiError() {
+        val config = loadConfigOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val proxy = PowerAuthIntegrationProxy(config, context)
+        proxy.initializePowerAuth()
+        proxy.prepareActivation()
+
+        try {
+            val testApi = proxy.createApi(config.operationsServerUrl)
+            assertEquals(RequestConcurrencyStrategy.SERIAL_AUTHENTICATED, testApi.concurrencyStrategy)
+
+            val latch = CountDownLatch(1)
+            var receivedError: ApiError? = null
+
+            testApi.post(
+                data = SelfInterruptingRequest(),
+                endpoint = EndpointAuthenticated<SelfInterruptingRequest, StatusResponse>(
+                    "/api/auth/token/app/operation/history",
+                    "/operation/history",
+                    StatusResponse::class.java
+                ),
+                authentication = PowerAuthAuthentication.possessionWithPassword(proxy.pin),
+                listener = object : IApiCallResponseListener<StatusResponse> {
+                    override fun onSuccess(result: StatusResponse) {
+                        fail("Should not succeed when the executor thread was interrupted")
+                        latch.countDown()
+                    }
+
+                    override fun onFailure(error: ApiError) {
+                        receivedError = error
+                        latch.countDown()
+                    }
+                }
+            )
+
+            assertTrue("Should fail within 10s, not hang", latch.await(10, TimeUnit.SECONDS))
+            assertNotNull("Interruption should be reported via onFailure", receivedError)
+            assertTrue(
+                "Failure should be caused by the interrupted latch await",
+                receivedError!!.e is InterruptedException
             )
         } finally {
             proxy.cleanup()

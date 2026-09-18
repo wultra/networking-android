@@ -31,13 +31,13 @@ val auth = PowerAuthAuthentication.possessionWithPassword("1111")
 // Api.post call
 post(
     // create request data
-    SampleRequest(SampleResponseData("12345")),
+    SampleRequest(SampleRequestData("12345")),
     // specify endpoint
     myEndpoint,
     // Authenticated with
     auth,
     // custom HTTP headers
-    hashMapOf(Pair("MyCustomHeader","Value"))
+    hashMapOf(Pair("MyCustomHeader","Value")),
     // no HTTP interceptor
     null,
     // handle response or error
