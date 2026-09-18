@@ -63,8 +63,25 @@ The `tokenProvider` constructor parameter and the `IPowerAuthTokenProvider`/`IPo
 
 ---
 
+### `EndpointAuthenticated` Requests Are Now Serialized By Default
+
+`Api.concurrencyStrategy` is a new property, defaulting to `RequestConcurrencyStrategy.SERIAL_AUTHENTICATED`. This is a **runtime behavior change**, not a source or binary break, so it applies even if you don't otherwise touch your code: `EndpointAuthenticated` requests, which used to always run fully concurrently, are now serialized one at a time via `PowerAuthSDK.getSerialExecutor()`. PowerAuth authentication codes use a counter as a representation of logical time, so the order in which signed requests are validated on the server matters — serializing them keeps that order guaranteed instead of leaving it to chance when multiple are fired at once.
+
+`EndpointBasic` and `EndpointAuthenticatedWithToken` requests are unaffected and keep running concurrently.
+
+If your app depends on `EndpointAuthenticated` requests running concurrently — for example, because you already serialize them yourself — restore the previous behavior:
+
+```kotlin
+api.concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL
+```
+
+See [Creating an HTTP request](Creating-an-HTTP-Request.md#request-concurrency-strategy) for details.
+
+---
+
 ### Migration Checklist
 
 - Add a `Class<TResponseData>` argument (e.g. `MyResponse::class.java`) to every `EndpointBasic`, `EndpointAuthenticated`, and `EndpointAuthenticatedWithToken` declaration in your project.
 - No changes are needed at `Api.post(...)` call sites.
 - Stop passing `tokenProvider` to the `Api` constructor and remove any custom `IPowerAuthTokenProvider` implementation.
+- If your app relies on `EndpointAuthenticated` requests running concurrently, set `concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL` — the new default now serializes them.

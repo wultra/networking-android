@@ -1,6 +1,8 @@
 # Changelog
 
 ## TBA
+- Added `Api.concurrencyStrategy` (of type `RequestConcurrencyStrategy`) to control how requests authenticated with a PowerAuth authentication code (`EndpointAuthenticated`) are dispatched. Its default value, `SERIAL_AUTHENTICATED`, serializes these requests via `PowerAuthSDK.getSerialExecutor()` so the underlying signature counter always reaches the server in the order it was assigned. **This changes the default runtime behavior** for existing apps: `EndpointAuthenticated` requests that used to run fully concurrently now run one at a time. To restore the previous behavior, set `concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL`. `EndpointBasic` and `EndpointAuthenticatedWithToken` requests are unaffected and always dispatched concurrently. [(#49)](https://github.com/wultra/networking-android/issues/49)
+    - [Migration guide](Migration-3.0.md)
 - Removed `inline`/`reified` generics from `Api.post()` and its internal helpers to fix ABI compatibility issues (internal implementation details no longer leak into consumer bytecode). `Endpoint` now carries an explicit `Class<TResponseData>` token instead. [(#98)](https://github.com/wultra/networking-android/issues/98)
     - [Migration guide](Migration-3.0.md)
 - Token-authenticated requests now use `PowerAuthSDK.tokenStore` directly. The `tokenProvider` constructor parameter and the `IPowerAuthTokenProvider`/`IPowerAuthTokenListener` interfaces are deprecated and retained only for source/binary compatibility; they will be removed in a future major version. [(#97)](https://github.com/wultra/networking-android/pull/97)
