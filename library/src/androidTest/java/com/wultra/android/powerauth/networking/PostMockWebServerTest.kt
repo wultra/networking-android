@@ -25,12 +25,17 @@ import com.wultra.android.powerauth.networking.error.ApiHttpException
 import com.wultra.android.powerauth.networking.log.WPNLogger
 import com.wultra.android.powerauth.networking.support.IntegrationTestApi
 import com.wultra.android.powerauth.networking.support.createDummyPowerAuth
+import io.getlime.security.powerauth.exception.PowerAuthErrorException
+import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
 import okhttp3.OkHttpClient
+import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
@@ -38,6 +43,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * MockWebServer-based tests for the [Api.post] pipeline.
@@ -474,5 +480,103 @@ class PostMockWebServerTest {
         // The ERROR status is in the response object itself
         assertNotNull("Should receive parsed response", receivedResponse)
         assertEquals(StatusResponse.Status.ERROR, receivedResponse!!.status)
+    }
+
+    // --- Concurrency-strategy tests ---
+
+    private fun installDelayedDispatcher(delayMillis: Long): AtomicInteger {
+        val maxInFlight = AtomicInteger(0)
+        val inFlight = AtomicInteger(0)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                val current = inFlight.incrementAndGet()
+                maxInFlight.updateAndGet { maxOf(it, current) }
+                Thread.sleep(delayMillis)
+                inFlight.decrementAndGet()
+                return MockResponse()
+                    .setResponseCode(200)
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("""{"status":"OK"}""")
+            }
+        }
+        return maxInFlight
+    }
+
+    private fun firePostBasicRequests(count: Int): CountDownLatch {
+        val latch = CountDownLatch(count)
+        repeat(count) {
+            api.post(
+                data = BaseRequest(),
+                endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+                listener = object : IApiCallResponseListener<StatusResponse> {
+                    override fun onSuccess(result: StatusResponse) { latch.countDown() }
+                    override fun onFailure(error: ApiError) { latch.countDown() }
+                }
+            )
+        }
+        return latch
+    }
+
+    @Test
+    fun basicPostConcurrencyUnaffectedBySerialAuthenticatedDefault() {
+        assertEquals(RequestConcurrencyStrategy.SERIAL_AUTHENTICATED, api.concurrencyStrategy)
+        val maxInFlight = installDelayedDispatcher(delayMillis = 300)
+
+        val latch = firePostBasicRequests(count = 4)
+
+        assertTrue("Requests should complete within 10s", latch.await(10, TimeUnit.SECONDS))
+        assertTrue(
+            "EndpointBasic calls should still run concurrently under SERIAL_AUTHENTICATED (max in-flight was ${maxInFlight.get()})",
+            maxInFlight.get() > 1
+        )
+    }
+
+    @Test
+    fun basicPostConcurrencyUnaffectedByConcurrentAll() {
+        api.concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL
+        val maxInFlight = installDelayedDispatcher(delayMillis = 300)
+
+        val latch = firePostBasicRequests(count = 4)
+
+        assertTrue("Requests should complete within 10s", latch.await(10, TimeUnit.SECONDS))
+        assertTrue(
+            "EndpointBasic calls should run concurrently under CONCURRENT_ALL (max in-flight was ${maxInFlight.get()})",
+            maxInFlight.get() > 1
+        )
+    }
+
+    @Test
+    fun authenticatedPostWithSerialStrategyReportsMissingActivationAsApiError() {
+        // Default strategy is SERIAL_AUTHENTICATED, and `api` has no valid activation, so
+        // PowerAuthSDK.getSerialExecutor() throws PowerAuthErrorException synchronously.
+        assertEquals(RequestConcurrencyStrategy.SERIAL_AUTHENTICATED, api.concurrencyStrategy)
+
+        val latch = CountDownLatch(1)
+        var receivedError: ApiError? = null
+
+        api.post(
+            data = BaseRequest(),
+            endpoint = EndpointAuthenticated<BaseRequest, StatusResponse>("/api/secure", "/api/secure", StatusResponse::class.java),
+            authentication = PowerAuthAuthentication.possession(),
+            listener = object : IApiCallResponseListener<StatusResponse> {
+                override fun onSuccess(result: StatusResponse) {
+                    fail("Should not succeed without a valid activation")
+                    latch.countDown()
+                }
+
+                override fun onFailure(error: ApiError) {
+                    receivedError = error
+                    latch.countDown()
+                }
+            }
+        )
+
+        assertTrue("Should fail within 10s, not hang or crash", latch.await(10, TimeUnit.SECONDS))
+        assertNotNull("Should receive a failure via the listener", receivedError)
+        assertTrue(
+            "Failure should originate from getSerialExecutor()'s missing-activation check",
+            receivedError!!.e is PowerAuthErrorException
+        )
+        assertNull("No request should reach the server", server.takeRequest(1, TimeUnit.SECONDS))
     }
 }
