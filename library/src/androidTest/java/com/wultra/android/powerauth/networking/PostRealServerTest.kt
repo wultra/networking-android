@@ -18,6 +18,10 @@ package com.wultra.android.powerauth.networking
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.google.gson.TypeAdapter
+import com.google.gson.annotations.JsonAdapter
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonWriter
 import com.wultra.android.powerauth.networking.data.BaseRequest
 import com.wultra.android.powerauth.networking.data.StatusResponse
 import com.wultra.android.powerauth.networking.error.ApiError
@@ -29,6 +33,7 @@ import com.wultra.android.powerauth.networking.support.TestConfiguration
 import com.wultra.android.powerauth.networking.support.TestEndpoints
 import com.wultra.android.powerauth.networking.support.createDummyPowerAuth
 import io.getlime.security.powerauth.sdk.PowerAuthAuthentication
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -42,6 +47,30 @@ import org.junit.runner.RunWith
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
+/**
+ * Request that sets the current thread's interrupt flag while its body is serialized.
+ *
+ * Used to deterministically reproduce interruption of the SERIAL_AUTHENTICATED runnable
+ * while it is blocked in `CountDownLatch.await` inside `Api.makeBlockingCall`: since the
+ * flag is set on the runnable's own thread during body serialization (which always runs
+ * before the `await` call), the subsequent `await` throws `InterruptedException`
+ * immediately, regardless of thread-pool scheduling or network timing.
+ */
+@JsonAdapter(SelfInterruptingRequest.Adapter::class)
+class SelfInterruptingRequest : BaseRequest() {
+    class Adapter : TypeAdapter<SelfInterruptingRequest>() {
+        override fun write(out: JsonWriter, value: SelfInterruptingRequest?) {
+            Thread.currentThread().interrupt()
+            out.beginObject().endObject()
+        }
+
+        override fun read(reader: JsonReader): SelfInterruptingRequest {
+            throw UnsupportedOperationException()
+        }
+    }
+}
 
 /**
  * Real-server integration tests for the [Api.post] pipeline.
@@ -195,6 +224,191 @@ class PostRealServerTest {
             assertNotNull("Should receive success response", receivedResponse)
             assertEquals(StatusResponse.Status.OK, receivedResponse!!.status)
             assertNull("Successful authenticated request should not report an error", receivedError)
+        } finally {
+            proxy.cleanup()
+        }
+    }
+
+    // --- Concurrency-strategy tests ---
+    //
+    // A network interceptor slows down and counts in-flight requests client-side; the real
+    // network call still happens normally.
+
+    private fun installConcurrencyTrackingInterceptor(delayMillis: Long): Pair<OkHttpBuilderInterceptor, AtomicInteger> {
+        val maxInFlight = AtomicInteger(0)
+        val inFlight = AtomicInteger(0)
+        val interceptor = object : OkHttpBuilderInterceptor {
+            override fun intercept(builder: OkHttpClient.Builder) {
+                builder.addNetworkInterceptor(
+                    Interceptor { chain ->
+                        val current = inFlight.incrementAndGet()
+                        maxInFlight.updateAndGet { maxOf(it, current) }
+                        Thread.sleep(delayMillis)
+                        try {
+                            chain.proceed(chain.request())
+                        } finally {
+                            inFlight.decrementAndGet()
+                        }
+                    }
+                )
+            }
+        }
+        return interceptor to maxInFlight
+    }
+
+    private fun fireAuthenticatedHistoryRequests(
+        testApi: IntegrationTestApi,
+        proxy: PowerAuthIntegrationProxy,
+        count: Int,
+        okHttpInterceptor: OkHttpBuilderInterceptor
+    ): CountDownLatch {
+        val latch = CountDownLatch(count)
+        repeat(count) {
+            testApi.post(
+                data = BaseRequest(),
+                endpoint = TestEndpoints.history,
+                authentication = PowerAuthAuthentication.possessionWithPassword(proxy.pin),
+                okHttpInterceptor = okHttpInterceptor,
+                listener = object : IApiCallResponseListener<StatusResponse> {
+                    override fun onSuccess(result: StatusResponse) { latch.countDown() }
+                    override fun onFailure(error: ApiError) { latch.countDown() }
+                }
+            )
+        }
+        return latch
+    }
+
+    /**
+     * Default strategy (SERIAL_AUTHENTICATED) must cap real, successfully signed
+     * EndpointAuthenticated requests at 1 in-flight at a time.
+     */
+    @Test
+    fun authenticatedPostSerialAuthenticatedCapsConcurrencyAtOne() {
+        val config = loadConfigOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val proxy = PowerAuthIntegrationProxy(config, context)
+        proxy.initializePowerAuth()
+        proxy.prepareActivation()
+
+        try {
+            val testApi = proxy.createApi(config.operationsServerUrl)
+            assertEquals(RequestConcurrencyStrategy.SERIAL_AUTHENTICATED, testApi.concurrencyStrategy)
+
+            val (interceptor, maxInFlight) = installConcurrencyTrackingInterceptor(delayMillis = 500)
+            val latch = fireAuthenticatedHistoryRequests(testApi, proxy, count = 4, okHttpInterceptor = interceptor)
+
+            assertTrue("Requests should complete within 60s", latch.await(60, TimeUnit.SECONDS))
+            assertEquals(
+                "SERIAL_AUTHENTICATED must cap real, successfully signed requests at 1 in-flight",
+                1,
+                maxInFlight.get()
+            )
+        } finally {
+            proxy.cleanup()
+        }
+    }
+
+    /**
+     * CONCURRENT_ALL must allow real, successfully signed EndpointAuthenticated requests
+     * to overlap in flight.
+     */
+    @Test
+    fun authenticatedPostConcurrentAllAllowsOverlap() {
+        val config = loadConfigOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val proxy = PowerAuthIntegrationProxy(config, context)
+        proxy.initializePowerAuth()
+        proxy.prepareActivation()
+
+        try {
+            val testApi = proxy.createApi(config.operationsServerUrl)
+            testApi.concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL
+
+            val (interceptor, maxInFlight) = installConcurrencyTrackingInterceptor(delayMillis = 500)
+            val latch = fireAuthenticatedHistoryRequests(testApi, proxy, count = 4, okHttpInterceptor = interceptor)
+
+            assertTrue("Requests should complete within 60s", latch.await(60, TimeUnit.SECONDS))
+            assertTrue(
+                "CONCURRENT_ALL should allow overlapping requests (max in-flight was ${maxInFlight.get()})",
+                maxInFlight.get() > 1
+            )
+        } finally {
+            proxy.cleanup()
+        }
+    }
+
+    private fun fireTokenAuthenticatedRequests(
+        testApi: IntegrationTestApi,
+        count: Int,
+        okHttpInterceptor: OkHttpBuilderInterceptor
+    ): CountDownLatch {
+        val latch = CountDownLatch(count)
+        repeat(count) {
+            testApi.post(
+                data = BaseRequest(),
+                endpoint = TestEndpoints.operationList,
+                okHttpInterceptor = okHttpInterceptor,
+                listener = object : IApiCallResponseListener<StatusResponse> {
+                    override fun onSuccess(result: StatusResponse) { latch.countDown() }
+                    override fun onFailure(error: ApiError) { latch.countDown() }
+                }
+            )
+        }
+        return latch
+    }
+
+    /**
+     * [EndpointAuthenticatedWithToken] requests must stay concurrent under the default
+     * SERIAL_AUTHENTICATED strategy - only counter-based EndpointAuthenticated is serialized.
+     */
+    @Test
+    fun tokenAuthenticatedPostConcurrencyUnaffectedBySerialAuthenticatedDefault() {
+        val config = loadConfigOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val proxy = PowerAuthIntegrationProxy(config, context)
+        proxy.initializePowerAuth()
+        proxy.prepareActivation()
+
+        try {
+            val testApi = proxy.createApi(config.operationsServerUrl)
+            assertEquals(RequestConcurrencyStrategy.SERIAL_AUTHENTICATED, testApi.concurrencyStrategy)
+
+            val (interceptor, maxInFlight) = installConcurrencyTrackingInterceptor(delayMillis = 500)
+            val latch = fireTokenAuthenticatedRequests(testApi, count = 4, okHttpInterceptor = interceptor)
+
+            assertTrue("Requests should complete within 60s", latch.await(60, TimeUnit.SECONDS))
+            assertTrue(
+                "EndpointAuthenticatedWithToken calls should still run concurrently (max in-flight was ${maxInFlight.get()})",
+                maxInFlight.get() > 1
+            )
+        } finally {
+            proxy.cleanup()
+        }
+    }
+
+    /**
+     * [EndpointAuthenticatedWithToken] requests must stay concurrent under CONCURRENT_ALL too.
+     */
+    @Test
+    fun tokenAuthenticatedPostConcurrencyUnaffectedByConcurrentAll() {
+        val config = loadConfigOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val proxy = PowerAuthIntegrationProxy(config, context)
+        proxy.initializePowerAuth()
+        proxy.prepareActivation()
+
+        try {
+            val testApi = proxy.createApi(config.operationsServerUrl)
+            testApi.concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL
+
+            val (interceptor, maxInFlight) = installConcurrencyTrackingInterceptor(delayMillis = 500)
+            val latch = fireTokenAuthenticatedRequests(testApi, count = 4, okHttpInterceptor = interceptor)
+
+            assertTrue("Requests should complete within 60s", latch.await(60, TimeUnit.SECONDS))
+            assertTrue(
+                "EndpointAuthenticatedWithToken calls should run concurrently (max in-flight was ${maxInFlight.get()})",
+                maxInFlight.get() > 1
+            )
         } finally {
             proxy.cleanup()
         }
@@ -446,6 +660,116 @@ class PostRealServerTest {
             assertEquals(
                 ApiErrorCode.POWERAUTH_AUTH_FAIL,
                 httpException.errorResponse!!.responseObject.errorCode
+            )
+        } finally {
+            proxy.cleanup()
+        }
+    }
+
+    // --- SERIAL_AUTHENTICATED runnable failure-handling tests ---
+    //
+    // These require a real activation so that `PowerAuthSDK.getSerialExecutor()` actually
+    // schedules the request's runnable instead of throwing synchronously for a missing
+    // activation (see PostMockWebServerTest.authenticatedPostWithSerialStrategyReportsMissingActivationAsApiError).
+
+    /**
+     * A failure while building the request body inside the SERIAL_AUTHENTICATED runnable
+     * (submitted to `PowerAuthSDK.getSerialExecutor()`) must be reported via [ApiError],
+     * not escape the executor's task uncaught and leave the request hanging.
+     */
+    @Test
+    fun authenticatedPostSerialStrategyReportsBodySerializationFailureAsApiError() {
+        val config = loadConfigOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val proxy = PowerAuthIntegrationProxy(config, context)
+        proxy.initializePowerAuth()
+        proxy.prepareActivation()
+
+        try {
+            val testApi = proxy.createApi(config.operationsServerUrl)
+            assertEquals(RequestConcurrencyStrategy.SERIAL_AUTHENTICATED, testApi.concurrencyStrategy)
+
+            val latch = CountDownLatch(1)
+            var receivedError: ApiError? = null
+
+            testApi.post(
+                data = ThrowingBodyRequest(),
+                endpoint = EndpointAuthenticated<ThrowingBodyRequest, StatusResponse>(
+                    "/api/auth/token/app/operation/history",
+                    "/operation/history",
+                    StatusResponse::class.java
+                ),
+                authentication = PowerAuthAuthentication.possessionWithPassword(proxy.pin),
+                listener = object : IApiCallResponseListener<StatusResponse> {
+                    override fun onSuccess(result: StatusResponse) {
+                        fail("Should not succeed when request body serialization fails")
+                        latch.countDown()
+                    }
+
+                    override fun onFailure(error: ApiError) {
+                        receivedError = error
+                        latch.countDown()
+                    }
+                }
+            )
+
+            assertTrue("Should fail within 10s, not hang or crash the serial executor", latch.await(10, TimeUnit.SECONDS))
+            assertNotNull("Body serialization failure should be reported via onFailure", receivedError)
+            assertTrue(
+                "Failure should originate from the request body serialization",
+                receivedError!!.e is IllegalStateException
+            )
+        } finally {
+            proxy.cleanup()
+        }
+    }
+
+    /**
+     * Interrupting the thread that runs the SERIAL_AUTHENTICATED runnable while it is
+     * blocked in `CountDownLatch.await` (inside `Api.makeBlockingCall`) must be reported via
+     * [ApiError] instead of leaving the request pending forever.
+     */
+    @Test
+    fun authenticatedPostSerialStrategyReportsInterruptionAsApiError() {
+        val config = loadConfigOrSkip()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val proxy = PowerAuthIntegrationProxy(config, context)
+        proxy.initializePowerAuth()
+        proxy.prepareActivation()
+
+        try {
+            val testApi = proxy.createApi(config.operationsServerUrl)
+            assertEquals(RequestConcurrencyStrategy.SERIAL_AUTHENTICATED, testApi.concurrencyStrategy)
+
+            val latch = CountDownLatch(1)
+            var receivedError: ApiError? = null
+
+            testApi.post(
+                data = SelfInterruptingRequest(),
+                endpoint = EndpointAuthenticated<SelfInterruptingRequest, StatusResponse>(
+                    "/api/auth/token/app/operation/history",
+                    "/operation/history",
+                    StatusResponse::class.java
+                ),
+                authentication = PowerAuthAuthentication.possessionWithPassword(proxy.pin),
+                listener = object : IApiCallResponseListener<StatusResponse> {
+                    override fun onSuccess(result: StatusResponse) {
+                        fail("Should not succeed when the executor thread was interrupted")
+                        latch.countDown()
+                    }
+
+                    override fun onFailure(error: ApiError) {
+                        receivedError = error
+                        latch.countDown()
+                    }
+                }
+            )
+
+            assertTrue("Should fail within 10s, not hang", latch.await(10, TimeUnit.SECONDS))
+            assertNotNull("Interruption should be reported via onFailure", receivedError)
+            assertTrue(
+                "Failure should be caused by the interrupted latch await",
+                receivedError!!.e is InterruptedException
             )
         } finally {
             proxy.cleanup()
