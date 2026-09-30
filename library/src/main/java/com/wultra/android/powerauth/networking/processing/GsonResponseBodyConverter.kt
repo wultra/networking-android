@@ -30,7 +30,6 @@ import java.io.Reader
  *
  * Inspired by Retrofit implementation.
  */
-@PublishedApi
 internal class GsonResponseBodyConverter<T>(private val gson: Gson, private val adapter: TypeAdapter<T>) {
 
     @Throws(IOException::class)

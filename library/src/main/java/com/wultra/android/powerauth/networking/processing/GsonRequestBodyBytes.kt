@@ -28,7 +28,6 @@ import java.io.OutputStreamWriter
  *
  * Inspired by Retrofit implementation.
  */
-@PublishedApi
 internal class GsonRequestBodyBytes<T>(private val gson: Gson, private val adapter: TypeAdapter<T>) {
 
     @Throws(IOException::class)
