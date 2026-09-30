@@ -51,6 +51,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -380,42 +381,53 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor?,
         listener: IApiCallResponseListener<TResponseData>
     ) {
+        // Dispatch listener callbacks off the serial thread to avoid deadlocking it if the
+        // caller triggers another blocking PowerAuth call from within the callback.
+        val safeListener = serialCallbackListener(listener)
+
         val latch = CountDownLatch(1)
         var encryptorResult: Result<CoreEncryptor?>? = null
         getEncryptor(endpoint) { result ->
             encryptorResult = result
             latch.countDown()
         }
-        // Bounded by PowerAuthSDK's own client timeouts, so a stuck callback can't hang the
-        // shared serial executor forever.
         val clientConfig = powerAuthSDK.clientConfiguration
-        val timeoutMillis = clientConfig.connectionTimeout.toLong() + clientConfig.readTimeout.toLong()
+        val timeoutMillis = blockingCallTimeoutMillis(
+            connectionTimeoutMillis = clientConfig.connectionTimeout.toLong(),
+            readTimeoutMillis = clientConfig.readTimeout.toLong()
+        )
         val timedOut = try {
             !latch.await(timeoutMillis, TimeUnit.MILLISECONDS)
         } catch (e: InterruptedException) {
-            // Restore the interrupt status for callers/executors that check it, then still
-            // report the failure so the default async API never leaves the request pending.
             Thread.currentThread().interrupt()
-            listener.onFailure(ApiError(e))
+            safeListener.onFailure(ApiError(e))
             return
         }
         if (timedOut) {
-            listener.onFailure(ApiError(TimeoutException("Timed out waiting for the E2EE encryptor")))
+            safeListener.onFailure(ApiError(TimeoutException("Timed out waiting for the E2EE encryptor")))
             return
         }
 
         encryptorResult!!.onFailure {
-            listener.onFailure(ApiError(it))
+            safeListener.onFailure(ApiError(it))
         }.onSuccess { encryptor ->
             try {
                 val prepared = buildRequest(bodyBytes, endpoint, headers, okHttpInterceptor, encryptor)
                 val response = prepared.client.newCall(prepared.request).execute()
-                handleResponse(response, prepared.request, encryptor, endpoint, listener)
+                handleResponse(response, prepared.request, encryptor, endpoint, safeListener)
             } catch (e: Exception) {
-                listener.onFailure(ApiError(e))
+                safeListener.onFailure(ApiError(e))
             }
         }
     }
+
+    /**
+     * Wraps [listener] so its callbacks run on [OkHttpClient]'s dispatcher executor instead of
+     * the caller's thread. Used by [makeBlockingCall], which runs on PowerAuthSDK's serial
+     * executor thread where invoking the listener directly would risk a deadlock.
+     */
+    private fun <T> serialCallbackListener(listener: IApiCallResponseListener<T>): IApiCallResponseListener<T> =
+        dispatchingListener(okHttpClient.dispatcher.executorService, listener)
 
     private fun <T> getTypeAdapter(gson: Gson, type: Class<T>): TypeAdapter<T> {
         return gson.getAdapter(TypeToken.get(type))
@@ -496,6 +508,40 @@ abstract class Api(
         appContext,
         userAgent
     )
+}
+
+/**
+ * Wait bound for [Api.makeBlockingCall]'s `CountDownLatch.await`, derived from PowerAuthSDK's
+ * connection/read timeouts.
+ *
+ * [io.getlime.security.powerauth.sdk.PowerAuthClientConfiguration] forwards these values to
+ * [java.net.URLConnection.setConnectTimeout]/[java.net.URLConnection.setReadTimeout], where `0`
+ * means "no timeout" (standard Java convention). But `await(0, ...)` means "don't wait at all" -
+ * the opposite. Non-positive values are mapped to an unbounded wait to avoid that mismatch.
+ */
+internal fun blockingCallTimeoutMillis(connectionTimeoutMillis: Long, readTimeoutMillis: Long): Long {
+    return if (connectionTimeoutMillis <= 0 || readTimeoutMillis <= 0) {
+        Long.MAX_VALUE
+    } else {
+        connectionTimeoutMillis + readTimeoutMillis
+    }
+}
+
+/**
+ * Wraps [listener] so its callbacks run on [executor] instead of the caller's thread. Used by
+ * [Api.makeBlockingCall], which runs on PowerAuthSDK's serial executor thread where invoking the
+ * listener directly would risk a deadlock.
+ */
+internal fun <T> dispatchingListener(executor: Executor, listener: IApiCallResponseListener<T>): IApiCallResponseListener<T> {
+    return object : IApiCallResponseListener<T> {
+        override fun onSuccess(result: T) {
+            executor.execute { listener.onSuccess(result) }
+        }
+
+        override fun onFailure(error: ApiError) {
+            executor.execute { listener.onFailure(error) }
+        }
+    }
 }
 
 interface OkHttpBuilderInterceptor {
