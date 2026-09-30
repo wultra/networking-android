@@ -34,9 +34,9 @@ class MyServiceApi(
 
     companion object {
         // This endpoint points to https://my.serviceurl.com/api/auth/token/app/user/sample
-        private val sampleEndpoint1 = EndpointAuthenticated<SampleRequest, SampleResponse>("api/my/endpoint/user/sample", "/user/get", SampleRequest::class.java, SampleResponse::class.java)
+        private val sampleEndpoint1 = EndpointAuthenticated("api/my/endpoint/user/sample", "/user/get", SampleRequest::class.java, SampleResponse::class.java)
         // This endpoint points to https://my.serviceurl.com/api/auth/token/app/user/sample2
-        private val sampleEndpoint2 = EndpointAuthenticatedWithToken<SampleRequest, SampleResponse>("api/my/endpoint/user/sample2", "possession_universal", SampleRequest::class.java, SampleResponse::class.java)
+        private val sampleEndpoint2 = EndpointAuthenticatedWithToken("api/my/endpoint/user/sample2", "possession_universal", SampleRequest::class.java, SampleResponse::class.java)
     }
     
     /** Get the username with a token-authenticated request. */

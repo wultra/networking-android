@@ -14,7 +14,8 @@ repositories {
     mavenCentral() // if not defined elsewhere...
 }
 
-implementation "com.wultra.android.powerauth:powerauth-networking:1.x.y"
+// WPN_VERSION is your wanted target version
+implementation "com.wultra.android.powerauth:powerauth-networking:${WPN_VERSION}"
 ```
 
 ## Open Source Code

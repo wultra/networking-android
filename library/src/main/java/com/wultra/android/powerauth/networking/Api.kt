@@ -30,8 +30,6 @@ import com.wultra.android.powerauth.networking.error.ErrorResponse
 import com.wultra.android.powerauth.networking.log.WPNLogger
 import com.wultra.android.powerauth.networking.processing.GsonRequestBodyBytes
 import com.wultra.android.powerauth.networking.processing.GsonResponseBodyConverter
-import com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenProvider
-import com.wultra.android.powerauth.networking.tokens.TokenManager
 import com.wultra.android.powerauth.networking.utils.AppUtils
 import com.wultra.android.powerauth.networking.utils.ConnectionMonitor
 import com.wultra.android.powerauth.networking.utils.getCurrentLocale
@@ -86,15 +84,6 @@ abstract class Api(
     var acceptLanguage = "en"
 
     private val okHttpClient: OkHttpClient
-
-    // DEPRECATED: retained for binary compatibility with previously inlined token posts.
-    @PublishedApi
-    @Deprecated(
-        "Token providers are ignored and will be removed in the next major version.",
-        level = DeprecationLevel.WARNING
-    )
-    @Suppress("DEPRECATION")
-    internal val tokenProvider: IPowerAuthTokenProvider = TokenManager(appContext, powerAuthSDK.tokenStore)
 
     init {
         val builder = okHttpClient.newBuilder()
@@ -360,34 +349,6 @@ abstract class Api(
             })
         }
     }
-
-    /**
-     * Compatibility constructor for the removed token provider integration.
-     *
-     * The token provider is ignored. Token-authenticated requests always use the SDK token store.
-     */
-    @Deprecated(
-        "The token provider is ignored and will be removed in the next major version.",
-        level = DeprecationLevel.WARNING
-    )
-    @Suppress("DEPRECATION")
-    constructor(
-        baseUrl: String,
-        okHttpClient: OkHttpClient,
-        powerAuthSDK: PowerAuthSDK,
-        gsonBuilder: GsonBuilder,
-        appContext: Context,
-        @Suppress("UNUSED_PARAMETER", "DEPRECATION")
-        tokenProvider: IPowerAuthTokenProvider?,
-        userAgent: UserAgent = UserAgent.libraryDefault(appContext)
-    ) : this(
-        baseUrl,
-        okHttpClient,
-        powerAuthSDK,
-        gsonBuilder,
-        appContext,
-        userAgent
-    )
 }
 
 interface OkHttpBuilderInterceptor {

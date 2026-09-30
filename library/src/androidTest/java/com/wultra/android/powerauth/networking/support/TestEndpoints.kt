@@ -38,10 +38,10 @@ import com.wultra.android.powerauth.networking.data.StatusResponse
 object TestEndpoints {
 
     /** Simple unauthenticated POST to `/posts` (e.g. JSONPlaceholder). */
-    val posts = EndpointBasic<BaseRequest, StatusResponse>("/posts", BaseRequest::class.java, StatusResponse::class.java)
+    val posts = EndpointBasic("/posts", BaseRequest::class.java, StatusResponse::class.java)
 
     /** Onboarding start with application-scope E2EE. */
-    val start = EndpointBasic<StartObjectRequest, StatusResponse>(
+    val start = EndpointBasic(
         "/api/onboarding/start",
         StartObjectRequest::class.java,
         StatusResponse::class.java,
@@ -49,7 +49,7 @@ object TestEndpoints {
     )
 
     /** Authenticated endpoint for fetching operation history (uriId = `/operation/history`). */
-    val history = EndpointAuthenticated<BaseRequest, StatusResponse>(
+    val history = EndpointAuthenticated(
         "/api/auth/token/app/operation/history",
         "/operation/history",
         BaseRequest::class.java,
@@ -57,7 +57,7 @@ object TestEndpoints {
     )
 
     /** Token-authenticated endpoint for listing pending operations. */
-    val operationList = EndpointAuthenticatedWithToken<BaseRequest, StatusResponse>(
+    val operationList = EndpointAuthenticatedWithToken(
         "/api/auth/token/app/operation/list",
         "possession_universal",
         BaseRequest::class.java,
@@ -68,7 +68,7 @@ object TestEndpoints {
      * Deliberately misconfigured endpoint — uses activation-scope E2EE against
      * a server path that requires application-scope. Used to test error paths.
      */
-    val failingStart = EndpointBasic<BaseRequest, StatusResponse>(
+    val failingStart = EndpointBasic(
         "/api/onboarding/start",
         BaseRequest::class.java,
         StatusResponse::class.java,

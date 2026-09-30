@@ -23,7 +23,7 @@ class SampleRequest(requestObject: SampleRequestData): ObjectRequest<SampleReque
 class SampleResponse(responseObject: SampleResponseData, status: Status): ObjectResponse<SampleResponseData>(responseObject, status)
 
 // endpoint configuration
-val myEndpoint = EndpointAuthenticated<SampleRequest, SampleResponse>("api/my/endpoint/path", "/my/endoint/uriId", SampleRequest::class.java, SampleResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
+val myEndpoint = EndpointAuthenticated("api/my/endpoint/path", "/my/endoint/uriId", SampleRequest::class.java, SampleResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
 
 // Authentication, for example purposes, expect user PIN 1111
 val auth = PowerAuthAuthentication.possessionWithPassword("1111")
