@@ -19,7 +19,7 @@ Every `EndpointBasic`, `EndpointAuthenticated`, and `EndpointAuthenticatedWithTo
 
 Before (2.x):
 ```kotlin
-val myBasicEndpoint = EndpointBasic("api/my/endpoint/path", E2EEConfiguration.NOT_ENCRYPTED)
+val myBasicEndpoint = EndpointBasic<MyRequest, MyResponse>("api/my/endpoint/path", E2EEConfiguration.NOT_ENCRYPTED)
 ```
 
 After (3.0.x):
@@ -31,7 +31,7 @@ val myBasicEndpoint = EndpointBasic("api/my/endpoint/path", MyRequest::class.jav
 
 Before (2.x):
 ```kotlin
-val myAuthenticatedEndpoint = EndpointAuthenticated("api/my/endpoint/path", "/endpoint/uriId", E2EEConfiguration.NOT_ENCRYPTED)
+val myAuthenticatedEndpoint = EndpointAuthenticated<MyRequest, MyResponse>("api/my/endpoint/path", "/endpoint/uriId", E2EEConfiguration.NOT_ENCRYPTED)
 ```
 
 After (3.0.x):
@@ -43,7 +43,7 @@ val myAuthenticatedEndpoint = EndpointAuthenticated("api/my/endpoint/path", "/en
 
 Before (2.x):
 ```kotlin
-val myTokenEndpoint = EndpointAuthenticatedWithToken("api/my/endpoint/path", "possession_universal", E2EEConfiguration.NOT_ENCRYPTED)
+val myTokenEndpoint = EndpointAuthenticatedWithToken<MyRequest, MyResponse>("api/my/endpoint/path", "possession_universal", E2EEConfiguration.NOT_ENCRYPTED)
 ```
 
 After (3.0.x):
