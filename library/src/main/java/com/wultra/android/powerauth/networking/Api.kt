@@ -371,6 +371,30 @@ abstract class Api(
     }
 
     /**
+     * Synchronizes the time with the server, unless it is already synchronized.
+     *
+     * Required before every ECIES-encrypted request.
+     */
+    private fun synchronizeTime(completion: (Result<Unit>) -> Unit) {
+        val ts = powerAuthSDK.timeSynchronizationService
+        if (ts.isTimeSynchronized) {
+            completion(Result.success(Unit))
+        } else {
+            WPNLogger.i("Time is not synchronized, requesting synchronization first.")
+            ts.synchronizeTime(object: ITimeSynchronizationListener {
+                override fun onTimeSynchronizationSucceeded() {
+                    completion(Result.success(Unit))
+                }
+
+                override fun onTimeSynchronizationFailed(t: Throwable) {
+                    WPNLogger.e("Time failed to synchronize, stopping whole request: $t")
+                    completion(Result.failure(t))
+                }
+            })
+        }
+    }
+
+    /**
      * Same as [makeCall], but blocks until the request completes, as required by
      * [PowerAuthSDK.getSerialExecutor]'s contract.
      */
@@ -392,10 +416,12 @@ abstract class Api(
             latch.countDown()
         }
         val clientConfig = powerAuthSDK.clientConfiguration
-        val timeoutMillis = blockingCallTimeoutMillis(
+        val singleRequestTimeoutMillis = blockingCallTimeoutMillis(
             connectionTimeoutMillis = clientConfig.connectionTimeout.toLong(),
             readTimeoutMillis = clientConfig.readTimeout.toLong()
         )
+        // the wait covers the time synchronization request and the encryptor retrieval
+        val timeoutMillis = if (singleRequestTimeoutMillis == Long.MAX_VALUE) singleRequestTimeoutMillis else singleRequestTimeoutMillis * 2
         val timedOut = try {
             !latch.await(timeoutMillis, TimeUnit.MILLISECONDS)
         } catch (e: InterruptedException) {
@@ -448,38 +474,26 @@ abstract class Api(
             }
         }
 
-        when (endpoint.e2eeConfiguration) {
-            E2EEConfiguration.APPLICATION_SCOPE -> powerAuthSDK.getEncryptorForApplicationScope(listener)
-            E2EEConfiguration.ACTIVATION_SCOPE -> powerAuthSDK.getEncryptorForActivationScope(listener)
-            E2EEConfiguration.NOT_ENCRYPTED -> callback(Result.success(null))
+        if (endpoint.e2eeConfiguration == E2EEConfiguration.NOT_ENCRYPTED) {
+            callback(Result.success(null))
+            return
+        }
+
+        // ECIES encryption relies on a synchronized time. This is the single place where the time is synchronized.
+        synchronizeTime { result ->
+            result.onFailure {
+                callback(Result.failure(it))
+            }.onSuccess {
+                when (endpoint.e2eeConfiguration) {
+                    E2EEConfiguration.APPLICATION_SCOPE -> powerAuthSDK.getEncryptorForApplicationScope(listener)
+                    E2EEConfiguration.ACTIVATION_SCOPE -> powerAuthSDK.getEncryptorForActivationScope(listener)
+                    E2EEConfiguration.NOT_ENCRYPTED -> callback(Result.success(null))
+                }
+            }
         }
     }
 
     // DEPRECATED: retained for source and binary compatibility until the next major version.
-
-    @Deprecated(
-        "This method is no longer needed and will be removed in the next major version.",
-        level = DeprecationLevel.WARNING
-    )
-    @PublishedApi
-    internal fun synchronizeTime(completion: (Result<Unit>) -> Unit) {
-        val ts = powerAuthSDK.timeSynchronizationService
-        if (ts.isTimeSynchronized) {
-            completion(Result.success(Unit))
-        } else {
-            WPNLogger.i("Time is not synchronized, requesting synchronization first.")
-            ts.synchronizeTime(object: ITimeSynchronizationListener {
-                override fun onTimeSynchronizationSucceeded() {
-                    completion(Result.success(Unit))
-                }
-
-                override fun onTimeSynchronizationFailed(t: Throwable) {
-                    WPNLogger.e("Time failed to synchronize, stopping whole request: $t")
-                    completion(Result.failure(t))
-                }
-            })
-        }
-    }
 
     /**
      * Compatibility constructor for the removed token provider integration.

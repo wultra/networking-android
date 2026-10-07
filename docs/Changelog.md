@@ -6,6 +6,7 @@
 - Removed `inline`/`reified` generics from `Api.post()` and its internal helpers to fix ABI compatibility issues (internal implementation details no longer leak into consumer bytecode). `Endpoint` now carries an explicit `Class<TResponseData>` token instead. [(#98)](https://github.com/wultra/networking-android/issues/98)
     - [Migration guide](Migration-3.0.md)
 - Token-authenticated requests now use `PowerAuthSDK.tokenStore` directly. The `tokenProvider` constructor parameter and the `IPowerAuthTokenProvider`/`IPowerAuthTokenListener` interfaces are deprecated and retained only for source/binary compatibility; they will be removed in a future major version. [(#97)](https://github.com/wultra/networking-android/pull/97)
+- Reintroduced time synchronization before ECIES-encrypted requests (`E2EEConfiguration.APPLICATION_SCOPE` and `ACTIVATION_SCOPE`). Requests without E2EE no longer trigger it. [(#101)](https://github.com/wultra/networking-android/issues/101)
 
 ## 2.0.0
 
