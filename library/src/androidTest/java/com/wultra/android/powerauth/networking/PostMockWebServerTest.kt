@@ -120,7 +120,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {
                     receivedResponse = result
@@ -163,7 +163,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
             headers = headers,
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {
@@ -198,7 +198,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) { latch.countDown() }
                 override fun onFailure(error: ApiError) { latch.countDown() }
@@ -224,7 +224,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) { latch.countDown() }
                 override fun onFailure(error: ApiError) { latch.countDown() }
@@ -250,7 +250,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) { latch.countDown() }
                 override fun onFailure(error: ApiError) { latch.countDown() }
@@ -289,7 +289,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {
                     fail("Should not succeed for HTTP 400")
@@ -330,7 +330,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {
                     fail("Should not succeed for HTTP 500")
@@ -366,7 +366,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {
                     // Depending on Gson behavior, malformed JSON might result in
@@ -401,7 +401,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {
                     latch.countDown()
@@ -441,7 +441,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {
                     fail("Should not succeed for HTTP 401")
@@ -483,7 +483,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+            endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {
                     receivedResponse = result
@@ -529,7 +529,7 @@ class PostMockWebServerTest {
         repeat(count) {
             api.post(
                 data = BaseRequest(),
-                endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java),
+                endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", BaseRequest::class.java, StatusResponse::class.java),
                 listener = object : IApiCallResponseListener<StatusResponse> {
                     override fun onSuccess(result: StatusResponse) { latch.countDown() }
                     override fun onFailure(error: ApiError) { latch.countDown() }
@@ -578,7 +578,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = BaseRequest(),
-            endpoint = EndpointAuthenticated<BaseRequest, StatusResponse>("/api/secure", "/api/secure", StatusResponse::class.java),
+            endpoint = EndpointAuthenticated<BaseRequest, StatusResponse>("/api/secure", "/api/secure", BaseRequest::class.java, StatusResponse::class.java),
             authentication = PowerAuthAuthentication.possession(),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {
@@ -616,7 +616,7 @@ class PostMockWebServerTest {
 
         api.post(
             data = ThrowingBodyRequest(),
-            endpoint = EndpointAuthenticated<ThrowingBodyRequest, StatusResponse>("/api/secure", "/api/secure", StatusResponse::class.java),
+            endpoint = EndpointAuthenticated<ThrowingBodyRequest, StatusResponse>("/api/secure", "/api/secure", ThrowingBodyRequest::class.java, StatusResponse::class.java),
             authentication = PowerAuthAuthentication.possession(),
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {

@@ -30,8 +30,6 @@ import com.wultra.android.powerauth.networking.error.ErrorResponse
 import com.wultra.android.powerauth.networking.log.WPNLogger
 import com.wultra.android.powerauth.networking.processing.GsonRequestBodyBytes
 import com.wultra.android.powerauth.networking.processing.GsonResponseBodyConverter
-import com.wultra.android.powerauth.networking.tokens.IPowerAuthTokenProvider
-import com.wultra.android.powerauth.networking.tokens.TokenManager
 import com.wultra.android.powerauth.networking.utils.AppUtils
 import com.wultra.android.powerauth.networking.utils.ConnectionMonitor
 import com.wultra.android.powerauth.networking.utils.getCurrentLocale
@@ -98,15 +96,6 @@ abstract class Api(
 
     private val okHttpClient: OkHttpClient
 
-    // DEPRECATED: retained for binary compatibility with previously inlined token posts.
-    @PublishedApi
-    @Deprecated(
-        "Token providers are ignored and will be removed in the next major version.",
-        level = DeprecationLevel.WARNING
-    )
-    @Suppress("DEPRECATION")
-    internal val tokenProvider: IPowerAuthTokenProvider = TokenManager(appContext, powerAuthSDK.tokenStore)
-
     init {
         val builder = okHttpClient.newBuilder()
         WPNLogger.configure(builder)
@@ -122,7 +111,7 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
-        makeCall(getBodyBytes(data), endpoint, HashMap(headers.orEmpty()), okHttpInterceptor, listener)
+        makeCall(getBodyBytes(data, endpoint.requestType), endpoint, HashMap(headers.orEmpty()), okHttpInterceptor, listener)
     }
 
     fun <TRequestData: BaseRequest, TResponseData: StatusResponse> post(
@@ -172,7 +161,7 @@ abstract class Api(
             result.onFailure {
                 listener.onFailure(ApiError(it))
             }.onSuccess { tokenHeader ->
-                val bodyBytes = getBodyBytes(data)
+                val bodyBytes = getBodyBytes(data, endpoint.requestType)
                 val newHeaders = HashMap(headers.orEmpty())
                 newHeaders[tokenHeader.key] = tokenHeader.value
                 makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
@@ -223,9 +212,9 @@ abstract class Api(
         }
     }
 
-    private fun getBodyBytes(data: BaseRequest): ByteArray {
+    private fun <TRequestData: BaseRequest> getBodyBytes(data: TRequestData, requestType: Class<TRequestData>): ByteArray {
         val requestGson = gsonBuilder.create()
-        val requestTypeAdapter = getTypeAdapter(requestGson, data.javaClass)
+        val requestTypeAdapter = getTypeAdapter(requestGson, requestType)
         return GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
     }
 
@@ -236,7 +225,7 @@ abstract class Api(
         headers: HashMap<String, String>?
     ): Result<Pair<ByteArray, HashMap<String, String>>> {
         return try {
-            val bodyBytes = getBodyBytes(data)
+            val bodyBytes = getBodyBytes(data, endpoint.requestType)
             val newHeaders = HashMap(headers.orEmpty())
             val authorizationHeader = powerAuthSDK.authenticationHeaderForRequestWithBody(
                 authentication,
@@ -480,34 +469,6 @@ abstract class Api(
             })
         }
     }
-
-    /**
-     * Compatibility constructor for the removed token provider integration.
-     *
-     * The token provider is ignored. Token-authenticated requests always use the SDK token store.
-     */
-    @Deprecated(
-        "The token provider is ignored and will be removed in the next major version.",
-        level = DeprecationLevel.WARNING
-    )
-    @Suppress("DEPRECATION")
-    constructor(
-        baseUrl: String,
-        okHttpClient: OkHttpClient,
-        powerAuthSDK: PowerAuthSDK,
-        gsonBuilder: GsonBuilder,
-        appContext: Context,
-        @Suppress("UNUSED_PARAMETER", "DEPRECATION")
-        tokenProvider: IPowerAuthTokenProvider?,
-        userAgent: UserAgent = UserAgent.libraryDefault(appContext)
-    ) : this(
-        baseUrl,
-        okHttpClient,
-        powerAuthSDK,
-        gsonBuilder,
-        appContext,
-        userAgent
-    )
 }
 
 /**

@@ -4,16 +4,16 @@ This guide provides instructions for migrating from **Wultra PowerAuth Networkin
 
 Version `3.0.x` removes `inline`/`reified` generics from `Api.post()` and its internal helpers. `inline` functions are copied directly into the caller's compiled bytecode, which means:
 
-- Consumers who don't recompile against a new version of this library keep running whatever implementation was inlined into their app at their last compile — a fix or behavior change shipped in a minor release would silently not apply to them, breaking the usual binary-compatibility contract.
-- A number of library internals (`baseUrl`, `powerAuthSDK`, `gsonBuilder`, `tokenProvider`, `userAgent`, and several private helper methods) had to be exposed as `@PublishedApi internal` just so inline call sites could reach them, permanently widening the library's binary surface.
+- Consumers who don't recompile against a new version of this library will crash at runtime: the properties that inline call sites depended on (`baseUrl`, `powerAuthSDK`, `gsonBuilder`, `userAgent`, and several private helper methods) are no longer `@PublishedApi internal` but `private`, so a call site compiled against an older version is no longer binary-compatible and fails with a `NoSuchFieldError`/`NoSuchMethodError`.
+- Before this fix, those same internals had to stay exposed as `@PublishedApi internal` just so inline call sites could reach them, permanently widening the library's binary surface.
 
-Removing `inline` fixes both problems, but `reified` generics require `inline` to work (it's how the JVM recovers an erased generic type at runtime). To make up for that, `Endpoint` now carries the response type as an explicit `Class<TResponseData>` argument.
+Removing `inline` fixes both problems, but `reified` generics require `inline` to work (it's how the JVM recovers an erased generic type at runtime). To make up for that, `Endpoint` now carries both the request and response type as explicit `Class<TRequestData>`/`Class<TResponseData>` arguments.
 
 ---
 
-### `Endpoint` Declarations Now Require a Response `Class`
+### `Endpoint` Declarations Now Require Request/Response `Class`es
 
-Every `EndpointBasic`, `EndpointAuthenticated`, and `EndpointAuthenticatedWithToken` declaration needs a new `responseType` argument — the `Class` of its response data (e.g. `MyResponse::class.java`) — inserted right after the existing identifying parameter(s) and before the optional `e2eeConfiguration`.
+Every `EndpointBasic`, `EndpointAuthenticated`, and `EndpointAuthenticatedWithToken` declaration needs two new arguments — the `Class` of its request data and the `Class` of its response data (e.g. `MyRequest::class.java`, `MyResponse::class.java`) — inserted right after the existing identifying parameter(s) and before the optional `e2eeConfiguration`, in that order.
 
 **`EndpointBasic`**
 
@@ -24,7 +24,7 @@ val myBasicEndpoint = EndpointBasic<MyRequest, MyResponse>("api/my/endpoint/path
 
 After (3.0.x):
 ```kotlin
-val myBasicEndpoint = EndpointBasic<MyRequest, MyResponse>("api/my/endpoint/path", MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
+val myBasicEndpoint = EndpointBasic("api/my/endpoint/path", MyRequest::class.java, MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
 ```
 
 **`EndpointAuthenticated`**
@@ -36,7 +36,7 @@ val myAuthenticatedEndpoint = EndpointAuthenticated<MyRequest, MyResponse>("api/
 
 After (3.0.x):
 ```kotlin
-val myAuthenticatedEndpoint = EndpointAuthenticated<MyRequest, MyResponse>("api/my/endpoint/path", "/endpoint/uriId", MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
+val myAuthenticatedEndpoint = EndpointAuthenticated("api/my/endpoint/path", "/endpoint/uriId", MyRequest::class.java, MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
 ```
 
 **`EndpointAuthenticatedWithToken`**
@@ -48,7 +48,7 @@ val myTokenEndpoint = EndpointAuthenticatedWithToken<MyRequest, MyResponse>("api
 
 After (3.0.x):
 ```kotlin
-val myTokenEndpoint = EndpointAuthenticatedWithToken<MyRequest, MyResponse>("api/my/endpoint/path", "possession_universal", MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
+val myTokenEndpoint = EndpointAuthenticatedWithToken("api/my/endpoint/path", "possession_universal", MyRequest::class.java, MyResponse::class.java, E2EEConfiguration.NOT_ENCRYPTED)
 ```
 
 <!-- begin box info -->
@@ -57,9 +57,9 @@ val myTokenEndpoint = EndpointAuthenticatedWithToken<MyRequest, MyResponse>("api
 
 ---
 
-### `tokenProvider` Deprecated
+### `tokenProvider` Removed
 
-The `tokenProvider` constructor parameter and the `IPowerAuthTokenProvider`/`IPowerAuthTokenListener` interfaces are deprecated and no longer consulted. Stop passing `tokenProvider` to the `Api` constructor and remove any custom `IPowerAuthTokenProvider` implementation.
+The `tokenProvider` constructor parameter and the `IPowerAuthTokenProvider`/`IPowerAuthTokenListener` interfaces have been removed. Token-authenticated requests now always use `PowerAuthSDK.tokenStore` directly. Remove the `tokenProvider` argument from the `Api` constructor call and delete any custom `IPowerAuthTokenProvider` implementation.
 
 ---
 
@@ -81,7 +81,7 @@ See [Creating an HTTP request](Creating-an-HTTP-Request.md#request-concurrency-s
 
 ### Migration Checklist
 
-- Add a `Class<TResponseData>` argument (e.g. `MyResponse::class.java`) to every `EndpointBasic`, `EndpointAuthenticated`, and `EndpointAuthenticatedWithToken` declaration in your project.
+- Add `Class<TRequestData>` and `Class<TResponseData>` arguments (e.g. `MyRequest::class.java`, `MyResponse::class.java`) to every `EndpointBasic`, `EndpointAuthenticated`, and `EndpointAuthenticatedWithToken` declaration in your project.
 - No changes are needed at `Api.post(...)` call sites.
-- Stop passing `tokenProvider` to the `Api` constructor and remove any custom `IPowerAuthTokenProvider` implementation.
+- Remove the `tokenProvider` argument from the `Api` constructor call and delete any custom `IPowerAuthTokenProvider` implementation.
 - If your app relies on `EndpointAuthenticated` requests running concurrently, set `concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL` — the new default now serializes them.

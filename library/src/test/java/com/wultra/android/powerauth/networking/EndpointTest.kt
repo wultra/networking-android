@@ -26,20 +26,21 @@ class EndpointTest {
 
     @Test
     fun `basic endpoint has correct path`() {
-        val endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java)
+        val endpoint = EndpointBasic("/api/test", BaseRequest::class.java, StatusResponse::class.java)
         assertEquals("/api/test", endpoint.endpointUrlPath)
     }
 
     @Test
     fun `basic endpoint defaults to not encrypted`() {
-        val endpoint = EndpointBasic<BaseRequest, StatusResponse>("/api/test", StatusResponse::class.java)
+        val endpoint = EndpointBasic("/api/test", BaseRequest::class.java, StatusResponse::class.java)
         assertEquals(E2EEConfiguration.NOT_ENCRYPTED, endpoint.e2eeConfiguration)
     }
 
     @Test
     fun `basic endpoint with application scope encryption`() {
-        val endpoint = EndpointBasic<BaseRequest, StatusResponse>(
+        val endpoint = EndpointBasic(
             "/api/onboarding/start",
+            BaseRequest::class.java,
             StatusResponse::class.java,
             E2EEConfiguration.APPLICATION_SCOPE
         )
@@ -49,8 +50,9 @@ class EndpointTest {
 
     @Test
     fun `basic endpoint with activation scope encryption`() {
-        val endpoint = EndpointBasic<BaseRequest, StatusResponse>(
+        val endpoint = EndpointBasic(
             "/api/secure",
+            BaseRequest::class.java,
             StatusResponse::class.java,
             E2EEConfiguration.ACTIVATION_SCOPE
         )
@@ -59,9 +61,10 @@ class EndpointTest {
 
     @Test
     fun `authenticated endpoint has correct path and uriId`() {
-        val endpoint = EndpointAuthenticated<BaseRequest, StatusResponse>(
+        val endpoint = EndpointAuthenticated(
             "/api/auth/token/app/operation/history",
             "/operation/history",
+            BaseRequest::class.java,
             StatusResponse::class.java
         )
         assertEquals("/api/auth/token/app/operation/history", endpoint.endpointUrlPath)
@@ -70,15 +73,16 @@ class EndpointTest {
 
     @Test
     fun `authenticated endpoint defaults to not encrypted`() {
-        val endpoint = EndpointAuthenticated<BaseRequest, StatusResponse>("/api/sign", "/sign", StatusResponse::class.java)
+        val endpoint = EndpointAuthenticated("/api/sign", "/sign", BaseRequest::class.java, StatusResponse::class.java)
         assertEquals(E2EEConfiguration.NOT_ENCRYPTED, endpoint.e2eeConfiguration)
     }
 
     @Test
     fun `authenticated endpoint with encryption`() {
-        val endpoint = EndpointAuthenticated<BaseRequest, StatusResponse>(
+        val endpoint = EndpointAuthenticated(
             "/api/sign",
             "/sign",
+            BaseRequest::class.java,
             StatusResponse::class.java,
             E2EEConfiguration.APPLICATION_SCOPE
         )
@@ -87,9 +91,10 @@ class EndpointTest {
 
     @Test
     fun `token authenticated endpoint has correct path and token name`() {
-        val endpoint = EndpointAuthenticatedWithToken<BaseRequest, StatusResponse>(
+        val endpoint = EndpointAuthenticatedWithToken(
             "/api/auth/token/app/operation/list",
             "possession_universal",
+            BaseRequest::class.java,
             StatusResponse::class.java
         )
         assertEquals("/api/auth/token/app/operation/list", endpoint.endpointUrlPath)
@@ -98,9 +103,10 @@ class EndpointTest {
 
     @Test
     fun `token authenticated endpoint defaults to not encrypted`() {
-        val endpoint = EndpointAuthenticatedWithToken<BaseRequest, StatusResponse>(
+        val endpoint = EndpointAuthenticatedWithToken(
             "/api/list",
             "access-token",
+            BaseRequest::class.java,
             StatusResponse::class.java
         )
         assertEquals(E2EEConfiguration.NOT_ENCRYPTED, endpoint.e2eeConfiguration)
@@ -108,9 +114,10 @@ class EndpointTest {
 
     @Test
     fun `token authenticated endpoint with encryption`() {
-        val endpoint = EndpointAuthenticatedWithToken<BaseRequest, StatusResponse>(
+        val endpoint = EndpointAuthenticatedWithToken(
             "/api/list",
             "access-token",
+            BaseRequest::class.java,
             StatusResponse::class.java,
             E2EEConfiguration.ACTIVATION_SCOPE
         )
