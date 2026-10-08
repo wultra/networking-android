@@ -697,6 +697,7 @@ class PostRealServerTest {
                 endpoint = EndpointAuthenticated<ThrowingBodyRequest, StatusResponse>(
                     "/api/auth/token/app/operation/history",
                     "/operation/history",
+                    ThrowingBodyRequest::class.java,
                     StatusResponse::class.java
                 ),
                 authentication = PowerAuthAuthentication.possessionWithPassword(proxy.pin),
@@ -749,6 +750,7 @@ class PostRealServerTest {
                 endpoint = EndpointAuthenticated<SelfInterruptingRequest, StatusResponse>(
                     "/api/auth/token/app/operation/history",
                     "/operation/history",
+                    SelfInterruptingRequest::class.java,
                     StatusResponse::class.java
                 ),
                 authentication = PowerAuthAuthentication.possessionWithPassword(proxy.pin),
