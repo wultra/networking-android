@@ -48,6 +48,10 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 interface IApiCallResponseListener<T> {
     fun onSuccess(result: T)
@@ -83,6 +87,13 @@ abstract class Api(
     @Volatile
     var acceptLanguage = "en"
 
+    /**
+     * Strategy used to dispatch [EndpointAuthenticated] requests.
+     * Default value is [RequestConcurrencyStrategy.SERIAL_AUTHENTICATED].
+     */
+    @Volatile
+    var concurrencyStrategy = RequestConcurrencyStrategy.SERIAL_AUTHENTICATED
+
     private val okHttpClient: OkHttpClient
 
     init {
@@ -111,24 +122,32 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
+        when (concurrencyStrategy) {
+            RequestConcurrencyStrategy.CONCURRENT_ALL ->
+                buildAuthenticatedHeaders(data, endpoint, authentication, headers)
+                    .onFailure {
+                        listener.onFailure(ApiError(it))
+                    }.onSuccess { (bodyBytes, newHeaders) ->
+                        makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
+                    }
 
-        val bodyBytes = getBodyBytes(data, endpoint.requestType)
-        val newHeaders = HashMap(headers.orEmpty())
-
-        try {
-            val authorizationHeader = powerAuthSDK.authenticationHeaderForRequestWithBody(
-                authentication,
-                "POST",
-                endpoint.uriId,
-                bodyBytes
-            )
-            newHeaders[authorizationHeader.key] = authorizationHeader.value
-        } catch (e: Exception) {
-            listener.onFailure(ApiError(e))
-            return
+            RequestConcurrencyStrategy.SERIAL_AUTHENTICATED -> {
+                val runnable = Runnable {
+                    buildAuthenticatedHeaders(data, endpoint, authentication, headers)
+                        .onFailure {
+                            listener.onFailure(ApiError(it))
+                        }.onSuccess { (bodyBytes, newHeaders) ->
+                            makeBlockingCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
+                        }
+                }
+                try {
+                    powerAuthSDK.getSerialExecutor().execute(runnable)
+                } catch (e: Exception) {
+                    // e.g. missing activation, or the executor rejected the task
+                    listener.onFailure(ApiError(e))
+                }
+            }
         }
-
-        makeCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
     }
 
     fun <TRequestData: BaseRequest, TResponseData: StatusResponse> post(
@@ -199,6 +218,118 @@ abstract class Api(
         return GsonRequestBodyBytes(requestGson, requestTypeAdapter).convert(data)
     }
 
+    private fun <TRequestData: BaseRequest> buildAuthenticatedHeaders(
+        data: TRequestData,
+        endpoint: EndpointAuthenticated<TRequestData, *>,
+        authentication: PowerAuthAuthentication,
+        headers: HashMap<String, String>?
+    ): Result<Pair<ByteArray, HashMap<String, String>>> {
+        return try {
+            val bodyBytes = getBodyBytes(data, endpoint.requestType)
+            val newHeaders = HashMap(headers.orEmpty())
+            val authorizationHeader = powerAuthSDK.authenticationHeaderForRequestWithBody(
+                authentication,
+                "POST",
+                endpoint.uriId,
+                bodyBytes
+            )
+            newHeaders[authorizationHeader.key] = authorizationHeader.value
+            Result.success(bodyBytes to newHeaders)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private data class PreparedCall(val request: Request, val client: OkHttpClient)
+
+    private fun buildRequest(
+        bodyBytes: ByteArray,
+        endpoint: Endpoint<*, *>,
+        headers: HashMap<String, String>,
+        okHttpInterceptor: OkHttpBuilderInterceptor?,
+        encryptor: CoreEncryptor?
+    ): PreparedCall {
+        var bytes = bodyBytes
+
+        if (encryptor != null) {
+            val encryptedRequest = encryptor.encryptRequest(bytes)
+            bytes = encryptedRequest.requestBody
+            if (endpoint is EndpointBasic || endpoint is EndpointAuthenticatedWithToken) {
+                encryptedRequest.requestHeaders.forEach { header ->
+                    headers[header.key] = header.value
+                }
+            }
+        }
+
+        val body = bytes.toRequestBody(
+            "application/json; charset=UTF-8".toMediaTypeOrNull(),
+            0,
+            bytes.size
+        )
+
+        val requestBuilder = Request.Builder()
+            .url("${baseUrl.removeSuffix("/")}/${endpoint.endpointUrlPath.removePrefix("/")}")
+            .post(body)
+            .header("Accept-Language", acceptLanguage)
+
+        userAgent.value?.let { requestBuilder.header("User-Agent", it) }
+
+        headers.forEach { requestBuilder.header(it.key, it.value) }
+
+        val request = requestBuilder.build()
+        val client = if (okHttpInterceptor != null) {
+            val builder = okHttpClient.newBuilder()
+            okHttpInterceptor.intercept(builder)
+            builder.build()
+        } else {
+            okHttpClient
+        }
+        return PreparedCall(request, client)
+    }
+
+    private fun <TResponseData: StatusResponse> handleResponse(
+        response: Response,
+        request: Request,
+        encryptor: CoreEncryptor?,
+        endpoint: Endpoint<*, TResponseData>,
+        listener: IApiCallResponseListener<TResponseData>
+    ) {
+        response.use {
+            try {
+                if (response.isSuccessful) {
+                    val responseBody = response.body
+                        ?: throw IOException("Response body is null")
+
+                    val resData = if (encryptor != null) {
+                        val decryptedData = encryptor.decryptResponse(CoreEncryptedResponse(responseBody.bytes()))
+                        okHttpClient.interceptors.mapNotNull { it as? ECIESInterceptor }.forEach {
+                            it.encryptedResponseReceived(request.url.toUrl(), decryptedData)
+                        }
+                        decryptedData
+                    } else {
+                        responseBody.bytes()
+                    }
+
+                    val gson = gsonBuilder.create()
+                    val typeAdapter = getTypeAdapter(gson, endpoint.responseType)
+                    val converter = GsonResponseBodyConverter(gson, typeAdapter)
+                    listener.onSuccess(converter.convert(resData))
+                } else {
+                    val bodyBytes = response.body?.bytes()
+                    val errorResponse = bodyBytes?.let {
+                        val gson = gsonBuilder.create()
+                        val typeAdapter = getTypeAdapter(gson, ErrorResponse::class.java)
+                        GsonResponseBodyConverter(gson, typeAdapter).convert(it)
+                    }
+                    listener.onFailure(ApiError(ApiHttpException(response, errorResponse)))
+                }
+            } catch (e: Throwable) {
+                // do not allow the app to crash when unexpected body is returned
+                listener.onFailure(ApiError(ApiHttpException(response, errorResponse = null, cause = e)))
+            }
+        }
+    }
+
     private fun <TResponseData: StatusResponse> makeCall(
         bodyBytes: ByteArray,
         endpoint: Endpoint<*, TResponseData>,
@@ -206,97 +337,86 @@ abstract class Api(
         okHttpInterceptor: OkHttpBuilderInterceptor? = null,
         listener: IApiCallResponseListener<TResponseData>
     ) {
-
-        var bytes = bodyBytes
-
         getEncryptor(endpoint) { result ->
             result.onFailure {
                 listener.onFailure(ApiError(it))
             }.onSuccess { encryptor ->
-                if (encryptor != null) {
-                    try {
-                        val encryptedRequest = encryptor.encryptRequest(bytes)
-                        bytes = encryptedRequest.requestBody
-                        if (endpoint is EndpointBasic || endpoint is EndpointAuthenticatedWithToken) {
-                            encryptedRequest.requestHeaders.forEach { header ->
-                                headers[header.key] = header.value
-                            }
+                try {
+                    val prepared = buildRequest(bodyBytes, endpoint, headers, okHttpInterceptor, encryptor)
+                    prepared.client.newCall(prepared.request).enqueue(object : Callback {
+                        override fun onFailure(call: Call, e: IOException) {
+                            listener.onFailure(ApiError(e))
                         }
-                    } catch (e: Exception) {
-                        listener.onFailure(ApiError(e))
-                        return@onSuccess
-                    }
-                }
 
-                val body = bytes.toRequestBody(
-                    "application/json; charset=UTF-8".toMediaTypeOrNull(),
-                    0,
-                    bytes.size
-                )
-
-                val requestBuilder = Request.Builder()
-                    .url("${baseUrl.removeSuffix("/")}/${endpoint.endpointUrlPath.removePrefix("/")}")
-                    .post(body)
-                    .header("Accept-Language", acceptLanguage)
-
-                userAgent.value?.let { requestBuilder.header("User-Agent", it) }
-
-                headers.forEach { requestBuilder.header(it.key, it.value) }
-
-                val request = requestBuilder.build()
-                val client = if (okHttpInterceptor != null) {
-                    val builder = okHttpClient.newBuilder()
-                    okHttpInterceptor.intercept(builder)
-                    builder.build()
-                } else {
-                    okHttpClient
-                }
-                val call = client.newCall(request)
-                call.enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) {
-                        listener.onFailure(ApiError(e))
-                    }
-
-                    override fun onResponse(call: Call, response: Response) {
-                        response.use {
-                            try {
-                                if (response.isSuccessful) {
-                                    val responseBody = response.body
-                                        ?: throw IOException("Response body is null")
-
-                                    val resData = if (encryptor != null) {
-                                        val decryptedData = encryptor.decryptResponse(CoreEncryptedResponse(responseBody.bytes()))
-                                        okHttpClient.interceptors.mapNotNull { it as? ECIESInterceptor }.forEach {
-                                            it.encryptedResponseReceived(request.url.toUrl(), decryptedData)
-                                        }
-                                        decryptedData
-                                    } else {
-                                        responseBody.bytes()
-                                    }
-
-                                    val gson = gsonBuilder.create()
-                                    val typeAdapter = getTypeAdapter(gson, endpoint.responseType)
-                                    val converter = GsonResponseBodyConverter(gson, typeAdapter)
-                                    listener.onSuccess(converter.convert(resData))
-                                } else {
-                                    val bodyBytes = response.body?.bytes()
-                                    val errorResponse = bodyBytes?.let {
-                                        val gson = gsonBuilder.create()
-                                        val typeAdapter = getTypeAdapter(gson, ErrorResponse::class.java)
-                                        GsonResponseBodyConverter(gson, typeAdapter).convert(it)
-                                    }
-                                    listener.onFailure(ApiError(ApiHttpException(response, errorResponse)))
-                                }
-                            } catch (e: Throwable) {
-                                // do not allow the app to crash when unexpected body is returned
-                                listener.onFailure(ApiError(ApiHttpException(response, errorResponse = null, cause = e)))
-                            }
+                        override fun onResponse(call: Call, response: Response) {
+                            handleResponse(response, prepared.request, encryptor, endpoint, listener)
                         }
-                    }
-                })
+                    })
+                } catch (e: Exception) {
+                    listener.onFailure(ApiError(e))
+                }
             }
         }
     }
+
+    /**
+     * Same as [makeCall], but blocks until the request completes, as required by
+     * [PowerAuthSDK.getSerialExecutor]'s contract.
+     */
+    private fun <TResponseData: StatusResponse> makeBlockingCall(
+        bodyBytes: ByteArray,
+        endpoint: Endpoint<*, TResponseData>,
+        headers: HashMap<String, String>,
+        okHttpInterceptor: OkHttpBuilderInterceptor?,
+        listener: IApiCallResponseListener<TResponseData>
+    ) {
+        // Dispatch listener callbacks off the serial thread to avoid deadlocking it if the
+        // caller triggers another blocking PowerAuth call from within the callback.
+        val safeListener = serialCallbackListener(listener)
+
+        val latch = CountDownLatch(1)
+        var encryptorResult: Result<CoreEncryptor?>? = null
+        getEncryptor(endpoint) { result ->
+            encryptorResult = result
+            latch.countDown()
+        }
+        val clientConfig = powerAuthSDK.clientConfiguration
+        val timeoutMillis = blockingCallTimeoutMillis(
+            connectionTimeoutMillis = clientConfig.connectionTimeout.toLong(),
+            readTimeoutMillis = clientConfig.readTimeout.toLong()
+        )
+        val timedOut = try {
+            !latch.await(timeoutMillis, TimeUnit.MILLISECONDS)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            safeListener.onFailure(ApiError(e))
+            return
+        }
+        if (timedOut) {
+            safeListener.onFailure(ApiError(TimeoutException("Timed out waiting for the E2EE encryptor")))
+            return
+        }
+
+        encryptorResult!!.onFailure {
+            safeListener.onFailure(ApiError(it))
+        }.onSuccess { encryptor ->
+            try {
+                val prepared = buildRequest(bodyBytes, endpoint, headers, okHttpInterceptor, encryptor)
+                val response = prepared.client.newCall(prepared.request).execute()
+                handleResponse(response, prepared.request, encryptor, endpoint, safeListener)
+            } catch (e: Exception) {
+                safeListener.onFailure(ApiError(e))
+            }
+        }
+    }
+
+    /**
+     * Wraps [listener] so its callbacks run on [OkHttpClient]'s dispatcher executor instead of
+     * the caller's thread. Used by [makeBlockingCall], which runs on PowerAuthSDK's serial
+     * executor thread where invoking the listener directly would risk a deadlock.
+     */
+    private fun <T> serialCallbackListener(listener: IApiCallResponseListener<T>): IApiCallResponseListener<T> =
+        dispatchingListener(okHttpClient.dispatcher.executorService, listener)
 
     private fun <T> getTypeAdapter(gson: Gson, type: Class<T>): TypeAdapter<T> {
         return gson.getAdapter(TypeToken.get(type))
@@ -351,8 +471,57 @@ abstract class Api(
     }
 }
 
+/**
+ * Wait bound for [Api.makeBlockingCall]'s `CountDownLatch.await`, derived from PowerAuthSDK's
+ * connection/read timeouts.
+ *
+ * [io.getlime.security.powerauth.sdk.PowerAuthClientConfiguration] forwards these values to
+ * [java.net.URLConnection.setConnectTimeout]/[java.net.URLConnection.setReadTimeout], where `0`
+ * means "no timeout" (standard Java convention). But `await(0, ...)` means "don't wait at all" -
+ * the opposite. Non-positive values are mapped to an unbounded wait to avoid that mismatch.
+ */
+internal fun blockingCallTimeoutMillis(connectionTimeoutMillis: Long, readTimeoutMillis: Long): Long {
+    return if (connectionTimeoutMillis <= 0 || readTimeoutMillis <= 0) {
+        Long.MAX_VALUE
+    } else {
+        connectionTimeoutMillis + readTimeoutMillis
+    }
+}
+
+/**
+ * Wraps [listener] so its callbacks run on [executor] instead of the caller's thread. Used by
+ * [Api.makeBlockingCall], which runs on PowerAuthSDK's serial executor thread where invoking the
+ * listener directly would risk a deadlock.
+ */
+internal fun <T> dispatchingListener(executor: Executor, listener: IApiCallResponseListener<T>): IApiCallResponseListener<T> {
+    return object : IApiCallResponseListener<T> {
+        override fun onSuccess(result: T) {
+            executor.execute { listener.onSuccess(result) }
+        }
+
+        override fun onFailure(error: ApiError) {
+            executor.execute { listener.onFailure(error) }
+        }
+    }
+}
+
 interface OkHttpBuilderInterceptor {
     fun intercept(builder: OkHttpClient.Builder)
+}
+
+/**
+ * Strategy used to dispatch [EndpointAuthenticated] requests. [EndpointBasic] and
+ * [EndpointAuthenticatedWithToken] are unaffected and always dispatched concurrently.
+ *
+ * PowerAuth authentication codes use a counter, so signed requests must be validated on the
+ * server in order - if more than one is issued at the same time, one may fail.
+ * See [PowerAuthSDK.getSerialExecutor] for details.
+ */
+enum class RequestConcurrencyStrategy {
+    /** All requests are dispatched concurrently (previous default behavior). */
+    CONCURRENT_ALL,
+    /** Serialized via [PowerAuthSDK.getSerialExecutor], one in flight at a time. */
+    SERIAL_AUTHENTICATED
 }
 
 class UserAgent internal constructor(internal val value: String? = null) {

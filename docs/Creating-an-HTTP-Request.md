@@ -53,3 +53,27 @@ post(
 )
 
 ```
+
+## Request concurrency strategy
+
+Requests to `EndpointAuthenticated` are signed with a PowerAuth authentication code, which uses a
+counter as a representation of logical time. The order in which signed requests are validated on
+the server matters: if more than one is issued at the same time, that order is not guaranteed,
+and one of the requests may fail.
+
+To prevent this, `Api.concurrencyStrategy` (of type `RequestConcurrencyStrategy`) controls how
+`EndpointAuthenticated` requests are dispatched:
+
+- `SERIAL_AUTHENTICATED` (default) - these requests are serialized via `PowerAuthSDK.getSerialExecutor()`, so only one is signed and in flight at a time, preserving counter order.
+- `CONCURRENT_ALL` - all requests, including `EndpointAuthenticated`, are dispatched concurrently.
+
+`EndpointBasic` and `EndpointAuthenticatedWithToken` requests are always dispatched concurrently
+and are not affected by this setting, since they either aren't signed at all or use a
+counter-independent token header.
+
+If your app relies on firing multiple `EndpointAuthenticated` requests at once and handles
+ordering itself, opt back into the previous behavior:
+
+```kotlin
+api.concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL
+```
