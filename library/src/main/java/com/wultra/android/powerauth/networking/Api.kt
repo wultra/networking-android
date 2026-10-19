@@ -135,7 +135,8 @@ abstract class Api(
                 val runnable = Runnable {
                     buildAuthenticatedHeaders(data, endpoint, authentication, headers)
                         .onFailure {
-                            listener.onFailure(ApiError(it))
+                            // runs on the serial executor thread, so do not invoke the listener directly
+                            serialCallbackListener(listener).onFailure(ApiError(it))
                         }.onSuccess { (bodyBytes, newHeaders) ->
                             makeBlockingCall(bodyBytes, endpoint, newHeaders, okHttpInterceptor, listener)
                         }
