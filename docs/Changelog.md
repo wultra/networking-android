@@ -1,6 +1,8 @@
 # Changelog
 
 ## TBA
+- Upgraded PowerAuth SDK to `2.1.x` (`2.1.+`, accepts patch releases). [(#104)](https://github.com/wultra/networking-android/issues/104)
+    - Suggested next SDK version: `2.1.0` for this change alone (minor, non-breaking); since this TBA section also contains breaking changes, the release is planned as `3.0.0`.
 - Added `Api.concurrencyStrategy` (of type `RequestConcurrencyStrategy`) to control how requests authenticated with a PowerAuth authentication code (`EndpointAuthenticated`) are dispatched. Its default value, `SERIAL_AUTHENTICATED`, serializes these requests via `PowerAuthSDK.getSerialExecutor()` so the underlying signature counter always reaches the server in the order it was assigned. **This changes the default runtime behavior** for existing apps: `EndpointAuthenticated` requests that used to run fully concurrently now run one at a time. To restore the previous behavior, set `concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL`. `EndpointBasic` and `EndpointAuthenticatedWithToken` requests are unaffected and always dispatched concurrently. [(#49)](https://github.com/wultra/networking-android/issues/49)
     - [Migration guide](Migration-3.0.md)
 - Removed `inline`/`reified` generics from `Api.post()` and its internal helpers to fix ABI compatibility issues (internal implementation details no longer leak into consumer bytecode). `Endpoint` now carries explicit `Class<TRequestData>`/`Class<TResponseData>` tokens instead. [(#98)](https://github.com/wultra/networking-android/issues/98)
