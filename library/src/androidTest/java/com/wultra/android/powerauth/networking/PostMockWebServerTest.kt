@@ -77,7 +77,7 @@ class ThrowingBodyRequest : BaseRequest() {
 class PostMockWebServerTest {
 
     private lateinit var server: MockWebServer
-    private lateinit var api: IntegrationTestApi
+    private val api by lazy { createApi() }
 
     @Before
     fun setUp() {
@@ -85,16 +85,19 @@ class PostMockWebServerTest {
         server.start()
 
         WPNLogger.verboseLevel = WPNLogger.VerboseLevel.DEBUG
+    }
 
+    private fun createApi(followRedirects: Boolean = false): IntegrationTestApi {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val powerAuth = createDummyPowerAuth(context, server.url("/").toString())
 
-        api = IntegrationTestApi(
+        return IntegrationTestApi(
             baseUrl = server.url("/").toString(),
             okHttpClient = OkHttpClient(),
             powerAuthSDK = powerAuth,
             appContext = context,
-            userAgent = UserAgent.customValue("TestAgent/1.0")
+            userAgent = UserAgent.customValue("TestAgent/1.0"),
+            followRedirects = followRedirects
         )
     }
 
@@ -120,25 +123,24 @@ class PostMockWebServerTest {
 
     @Test
     fun optInFollowsRedirects() {
-        api.followRedirects = true
-        assertRedirect(302, expectedFollowUpMethod = "GET")
+        assertRedirect(302, expectedFollowUpMethod = "GET", api = createApi(followRedirects = true))
     }
 
     @Test
     fun perRequestBuilderCanDisableOptedInRedirects() {
-        api.followRedirects = true
         val interceptor = object : OkHttpBuilderInterceptor {
             override fun intercept(builder: OkHttpClient.Builder) {
                 builder.followRedirects(false)
             }
         }
-        assertRedirect(302, interceptor)
+        assertRedirect(302, interceptor, api = createApi(followRedirects = true))
     }
 
     private fun assertRedirect(
         statusCode: Int,
         interceptor: OkHttpBuilderInterceptor? = null,
-        expectedFollowUpMethod: String? = null
+        expectedFollowUpMethod: String? = null,
+        api: IntegrationTestApi = this.api
     ) {
         server.enqueue(MockResponse().setResponseCode(statusCode).setHeader("Location", "/final"))
         server.enqueue(MockResponse().setBody("""{"status":"OK"}"""))

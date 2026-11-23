@@ -76,7 +76,13 @@ abstract class Api(
     private val powerAuthSDK: PowerAuthSDK,
     private val gsonBuilder: GsonBuilder,
     appContext: Context,
-    private val userAgent: UserAgent = UserAgent.libraryDefault(appContext)
+    private val userAgent: UserAgent = UserAgent.libraryDefault(appContext),
+    /**
+     * Enables OkHttp's standard redirect handling, including redirects to another host or between HTTP and HTTPS.
+     * Defaults to `false`. When `true`, use the `okHttpInterceptor` parameter of [post] to fine-tune
+     * redirect behavior for a request.
+     */
+    val followRedirects: Boolean = false
 ) {
 
     private val appContext: Context = appContext.applicationContext
@@ -94,20 +100,12 @@ abstract class Api(
     @Volatile
     var concurrencyStrategy = RequestConcurrencyStrategy.SERIAL_AUTHENTICATED
 
-    /**
-     * Enables OkHttp's standard redirect handling, including redirects to another host or between HTTP and HTTPS.
-     * Defaults to `false`. When `true`, use the `okHttpInterceptor` parameter of [post] to fine-tune
-     * redirect behavior for a request.
-     */
-    @Volatile
-    var followRedirects: Boolean = false
-
     private val okHttpClient: OkHttpClient
 
     init {
         val builder = okHttpClient.newBuilder()
         WPNLogger.configure(builder)
-        this.okHttpClient = builder.followRedirects(false).followSslRedirects(false).build()
+        this.okHttpClient = builder.followRedirects(followRedirects).followSslRedirects(followRedirects).build()
     }
 
     // PUBLIC API
@@ -286,14 +284,10 @@ abstract class Api(
         headers.forEach { requestBuilder.header(it.key, it.value) }
 
         val request = requestBuilder.build()
-        val allowRedirects = followRedirects
-        val client = if (okHttpInterceptor != null || allowRedirects) {
+        val client = if (okHttpInterceptor != null) {
             val builder = okHttpClient.newBuilder()
-            if (allowRedirects) {
-                builder.followRedirects(true).followSslRedirects(true)
-            }
-            okHttpInterceptor?.intercept(builder)
-            if (!allowRedirects) {
+            okHttpInterceptor.intercept(builder)
+            if (!followRedirects) {
                 builder.followRedirects(false).followSslRedirects(false)
             }
             builder.build()
