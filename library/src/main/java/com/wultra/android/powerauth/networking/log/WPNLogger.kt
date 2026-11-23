@@ -17,20 +17,19 @@
 package com.wultra.android.powerauth.networking.log
 
 import android.util.Log
-import com.wultra.android.powerauth.networking.ECIESInterceptor
 import okhttp3.Headers
+import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
-import okio.Buffer
-import java.net.URL
+import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Logger provides simple logging facility.
  *
  * Logs are written with "WPN" tag to standard [android.util.Log] logger.
- * You can set [logListener] to start listening on the
+ * You can set [logListener] to also receive messages allowed by [verboseLevel].
  */
 class WPNLogger {
 
@@ -58,12 +57,15 @@ class WPNLogger {
         @Volatile
         @JvmStatic var logListener: WPNLogListener? = null
 
-        /** If HTTP traffic should be logged. */
+        /** Whether to log HTTP metadata. Disabled by default; bodies are never logged by the HTTP interceptor. */
         @Volatile
-        @JvmStatic var logHttpTraffic = true
+        @JvmStatic var logHttpTraffic = false
 
         /**
          * Headers to skip when logging HTTP traffic.
+         *
+         * Authorization, Proxy-Authorization, Cookie, Set-Cookie and X-PowerAuth-* values
+         * are always redacted if the header is not skipped.
          *
          * Note that all headers are transformed to lowercase variant when added.
          *
@@ -78,11 +80,9 @@ class WPNLogger {
         private val tag = "WPN"
 
         private fun log(valueFn: () -> String, allowedLevel: VerboseLevel, logFn: (String?, String) -> Unit, listenerFn: ((String) -> Unit)?) {
-            val shouldProcess = verboseLevel.ordinal >= allowedLevel.ordinal
-            val log = if (shouldProcess || logListener?.followVerboseLevel == false) valueFn() else return
-            if (shouldProcess) {
-                logFn(tag, log)
-            }
+            if (verboseLevel.ordinal < allowedLevel.ordinal) return
+            val log = valueFn()
+            logFn(tag, log)
             listenerFn?.invoke(log)
         }
 
@@ -119,76 +119,36 @@ class WPNLogger {
         }
 
         internal fun configure(builder: OkHttpClient.Builder) {
-            builder.addInterceptor(
-                object: ECIESInterceptor {
-                    override fun encryptedResponseReceived(url: URL, decrypted: ByteArray) {
-                        if (logHttpTraffic) {
-                            d {
-                                "- Decrypted response ($url) - ${decrypted.decodeToString()}"
-                            }
-                        }
-                    }
+            builder.addInterceptor(Interceptor { chain ->
+                val request = chain.request()
+                if (!logHttpTraffic) return@Interceptor chain.proceed(request)
 
-                    override fun intercept(chain: Interceptor.Chain): Response {
-
-                        val request = chain.request()
-
-                        if (!logHttpTraffic) {
-                            return chain.proceed(request)
-                        }
-
-                        i {
-                            "\n<--- WPN REQUEST ---" +
-                                "\n- URL: ${request.method} - ${request.url}" +
-                                "\n- Headers: ${request.headers.forLog(httpHeadersToSkip.toList())}"
-                        }
-
-                        try {
-                            d {
-                                val buffer = Buffer()
-                                request.newBuilder().build().body?.writeTo(buffer)
-                                "- Body: ${buffer.readUtf8()}"
-                            }
-                        } catch (e: Throwable) {
-                            e("- Failed to parse request body: ${e.message}")
-                        }
-
-                        val response: Response
-
-                        try {
-                            response = chain.proceed(request)
-                        } catch (e: Throwable) {
-                            e {
-                                "\n--- WPN REQUEST FAILED --->" +
-                                    "\n- URL: ${request.method} - ${request.url}" +
-                                    "\n- Error: $e"
-                            }
-                            throw e
-                        }
-
-                        i {
-                            "\n--- WPN RESPONSE --->" +
-                                "\n- URL: ${response.request.method} - ${
-                                    response.request.url
-                                }" +
-                                "\n- Status code: ${response.code}" +
-                                "\n- Headers: ${response.headers.forLog(httpHeadersToSkip.toList())}"
-                        }
-
-                        try {
-                            d {
-                                "Body: ${
-                                    response.peekBody(10_000).string()
-                                }" // allow max 10 KB of text
-                            }
-                        } catch (e: Throwable) {
-                            e("- Failed to parse response body: ${e.message}")
-                        }
-
-                        return response
-                    }
+                i {
+                    "\n<--- WPN REQUEST ---" +
+                        "\n- Origin: ${request.method} - ${request.url.originForLog()}" +
+                        "\n- Headers: ${request.headers.forLog(httpHeadersToSkip.toList())}"
                 }
-            )
+
+                val response: Response
+                try {
+                    response = chain.proceed(request)
+                } catch (e: IOException) {
+                    e {
+                        "\n--- WPN REQUEST FAILED --->" +
+                            "\n- Origin: ${request.method} - ${request.url.originForLog()}" +
+                            "\n- Error: ${e.javaClass.name}"
+                    }
+                    throw e
+                }
+
+                i {
+                    "\n--- WPN RESPONSE --->" +
+                        "\n- Origin: ${response.request.method} - ${response.request.url.originForLog()}" +
+                        "\n- Status code: ${response.code}" +
+                        "\n- Headers: ${response.headers.forLog(httpHeadersToSkip.toList())}"
+                }
+                response
+            })
         }
     }
 }
@@ -233,17 +193,31 @@ class HeaderBlockList {
     fun toList(): List<String> = headersToSkip.toList()
 }
 
+private fun HttpUrl.originForLog(): String {
+    val originHost = if (':' in host) "[$host]" else host
+    return "$scheme://$originHost:$port"
+}
+
+private val sensitiveHeaders = setOf("authorization", "proxy-authorization", "cookie", "set-cookie")
+
 private fun Headers.forLog(skip: List<String>): String {
     val result = StringBuilder()
     var skipped = 0
     for (i in 0 until size) {
         val name = name(i)
-        if (!skip.contains(name.lowercase())) {
-            result.append("\n  - ${name}: ${value(i)}")
-        } else {
+        val lowerName = name.lowercase()
+        if (lowerName in skip) {
             skipped += 1
+            continue
         }
+        val displayValue = if (lowerName in sensitiveHeaders || lowerName.startsWith("x-powerauth-")) {
+            "<redacted>"
+        } else {
+            value(i)
+        }
+        result.append("\n  - $name: $displayValue")
     }
+
     result.insert(0, "$skipped filtered out")
     return result.toString()
 }

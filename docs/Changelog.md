@@ -8,6 +8,8 @@
     - [Migration guide](Migration-3.0.md)
 - Token-authenticated requests now use `PowerAuthSDK.tokenStore` directly. The `tokenProvider` constructor parameter and the `IPowerAuthTokenProvider`/`IPowerAuthTokenListener` interfaces have been removed. [(#97)](https://github.com/wultra/networking-android/pull/97)
 - Reintroduced time synchronization before ECIES-encrypted requests (`E2EEConfiguration.APPLICATION_SCOPE` and `ACTIVATION_SCOPE`). Requests without E2EE no longer trigger it. [(#101)](https://github.com/wultra/networking-android/issues/101)
+- Disabled HTTP traffic logging by default. Opt-in logs omit payloads (including decrypted E2EE responses) and full URLs, and redact credential headers. Log listeners now always respect `verboseLevel`. [(#106)](https://github.com/wultra/networking-android/issues/106)
+    - [Logging guide](Logging.md)
 
 ## 2.0.0
 
