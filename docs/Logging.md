@@ -33,7 +33,9 @@ The values of `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, an
 
 ## Log Listener
 
-Set `WPNLogger.logListener` to receive the same messages as Android Logcat. Both destinations respect `WPNLogger.verboseLevel`. The deprecated `followVerboseLevel` property is ignored; listeners no longer receive messages below the configured verbosity.
+Set `WPNLogger.logListener` to route messages to your own logging system. A listener with `followVerboseLevel = true` receives only messages allowed by `WPNLogger.verboseLevel`. To disable Logcat while keeping your own logging active, set `WPNLogger.verboseLevel` to `OFF` and implement the listener with `followVerboseLevel = false`. The listener can then apply its own filtering.
+
+HTTP diagnostics still require `WPNLogger.logHttpTraffic = true` and use the same redaction rules for both destinations.
 
 <!-- begin box info -->
 Log listener comes in handy when you want to log into a file or some online service.

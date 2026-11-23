@@ -19,9 +19,11 @@ package com.wultra.android.powerauth.networking.log
 /** Log listener receives logs from the library logger for further processing. */
 interface WPNLogListener {
     /**
-     * Retained for compatibility. Listeners always follow [WPNLogger.verboseLevel].
+     * Whether this listener follows [WPNLogger.verboseLevel].
+     *
+     * Set to `false` to receive messages regardless of verbosity, even when Android logging is off.
+     * This does not enable HTTP traffic logging; that requires [WPNLogger.logHttpTraffic].
      */
-    @Deprecated("Listeners always follow WPNLogger.verboseLevel.")
     val followVerboseLevel: Boolean
 
     /** Error log */

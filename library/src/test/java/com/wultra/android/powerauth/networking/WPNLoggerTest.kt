@@ -91,7 +91,7 @@ class WPNLoggerTest {
     @Test
     fun `HTTP logging requires opt-in even at DEBUG`() {
         assertFalse(originalLogHttpTraffic)
-        val listener = TestLogListener()
+        val listener = TestLogListener(followVerboseLevel = false)
         WPNLogger.logListener = listener
         WPNLogger.verboseLevel = WPNLogger.VerboseLevel.DEBUG
 
@@ -102,10 +102,10 @@ class WPNLoggerTest {
     }
 
     @Test
-    fun `opt-in diagnostics omit payloads and protect credential headers`() {
-        val listener = TestLogListener()
+    fun `independent listener receives only sanitized HTTP diagnostics with Logcat off`() {
+        val listener = TestLogListener(followVerboseLevel = false)
         WPNLogger.logListener = listener
-        WPNLogger.verboseLevel = WPNLogger.VerboseLevel.DEBUG
+        WPNLogger.verboseLevel = WPNLogger.VerboseLevel.OFF
         WPNLogger.logHttpTraffic = true
         WPNLogger.httpHeadersToSkip = HeaderBlockList().apply {
             add("Cookie")
@@ -156,8 +156,8 @@ class WPNLoggerTest {
     }
 
     @Test
-    fun `listener cannot bypass verbosity and failure log omits exception message`() {
-        val listener = TestLogListener(followVerboseLevel = false)
+    fun `listener that follows verbosity receives sanitized failures only when allowed`() {
+        val listener = TestLogListener()
         WPNLogger.logListener = listener
         WPNLogger.logHttpTraffic = true
         val failure = IOException("dummy-failure-detail")
@@ -211,7 +211,6 @@ class WPNLoggerTest {
         .build()
 
     private class TestLogListener(
-        @Deprecated("Listeners always follow WPNLogger.verboseLevel.")
         override val followVerboseLevel: Boolean = true
     ) : WPNLogListener {
         val messages = mutableListOf<Pair<String, String>>()

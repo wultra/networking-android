@@ -29,7 +29,7 @@ import java.util.concurrent.CopyOnWriteArrayList
  * Logger provides simple logging facility.
  *
  * Logs are written with "WPN" tag to standard [android.util.Log] logger.
- * You can set [logListener] to also receive messages allowed by [verboseLevel].
+ * Set [logListener] to receive messages independently of Android logging.
  */
 class WPNLogger {
 
@@ -79,11 +79,13 @@ class WPNLogger {
 
         private val tag = "WPN"
 
-        private fun log(valueFn: () -> String, allowedLevel: VerboseLevel, logFn: (String?, String) -> Unit, listenerFn: ((String) -> Unit)?) {
-            if (verboseLevel.ordinal < allowedLevel.ordinal) return
+        private fun log(valueFn: () -> String, allowedLevel: VerboseLevel, logFn: (String?, String) -> Unit, listenerFn: (WPNLogListener, String) -> Unit) {
+            val logToAndroid = verboseLevel.ordinal >= allowedLevel.ordinal
+            val listener = logListener
+            if (!logToAndroid && listener?.followVerboseLevel != false) return
             val log = valueFn()
-            logFn(tag, log)
-            listenerFn?.invoke(log)
+            if (logToAndroid) logFn(tag, log)
+            if (listener != null) listenerFn(listener, log)
         }
 
         internal fun d(message: String) {
@@ -91,7 +93,7 @@ class WPNLogger {
         }
 
         internal fun d(fn: () -> String) {
-            log(fn, VerboseLevel.DEBUG, Log::d, logListener?.let { it::debug })
+            log(fn, VerboseLevel.DEBUG, Log::d, WPNLogListener::debug)
         }
 
         internal fun w(message: String) {
@@ -99,7 +101,7 @@ class WPNLogger {
         }
 
         internal fun w(fn: () -> String) {
-            log(fn, VerboseLevel.WARNING, Log::w, logListener?.let { it::warning })
+            log(fn, VerboseLevel.WARNING, Log::w, WPNLogListener::warning)
         }
 
         internal fun i(message: String) {
@@ -107,7 +109,7 @@ class WPNLogger {
         }
 
         internal fun i(fn: () -> String) {
-            log(fn, VerboseLevel.INFO, Log::i, logListener?.let { it::info })
+            log(fn, VerboseLevel.INFO, Log::i, WPNLogListener::info)
         }
 
         internal fun e(message: String) {
@@ -115,7 +117,7 @@ class WPNLogger {
         }
 
         internal fun e(fn: () -> String) {
-            log(fn, VerboseLevel.ERROR, Log::e, logListener?.let { it::error })
+            log(fn, VerboseLevel.ERROR, Log::e, WPNLogListener::error)
         }
 
         internal fun configure(builder: OkHttpClient.Builder) {
