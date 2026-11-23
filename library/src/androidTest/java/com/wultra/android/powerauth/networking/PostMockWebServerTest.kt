@@ -110,11 +110,12 @@ class PostMockWebServerTest {
 
     @Test
     fun perRequestBuilderCannotEnableRedirects() {
-        assertRedirectNotFollowed(307, object : OkHttpBuilderInterceptor {
+        val interceptor = object : OkHttpBuilderInterceptor {
             override fun intercept(builder: OkHttpClient.Builder) {
                 builder.followRedirects(true).followSslRedirects(true)
             }
-        })
+        }
+        assertRedirectNotFollowed(307, interceptor)
     }
 
     private fun assertRedirectNotFollowed(statusCode: Int, interceptor: OkHttpBuilderInterceptor? = null) {
