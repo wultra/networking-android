@@ -69,6 +69,9 @@ interface IApiCallResponseListener<T> {
  * to avoid holding a reference to an Activity or other short-lived context.
  * @param userAgent Default user agent for each request. Note that such value might be "overridden"
  * on per-request basis. Default value is `libraryDefault`.
+ * @param followRedirects Enables OkHttp's standard redirect handling, including redirects to another host or between
+ * HTTP and HTTPS. Defaults to `false`. When `true`, use the `okHttpInterceptor` parameter of [post] to fine-tune
+ * redirect behavior for a request.
  */
 abstract class Api(
     private val baseUrl: String,
@@ -77,11 +80,6 @@ abstract class Api(
     private val gsonBuilder: GsonBuilder,
     appContext: Context,
     private val userAgent: UserAgent = UserAgent.libraryDefault(appContext),
-    /**
-     * Enables OkHttp's standard redirect handling, including redirects to another host or between HTTP and HTTPS.
-     * Defaults to `false`. When `true`, use the `okHttpInterceptor` parameter of [post] to fine-tune
-     * redirect behavior for a request.
-     */
     val followRedirects: Boolean = false
 ) {
 
