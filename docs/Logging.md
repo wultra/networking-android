@@ -20,11 +20,10 @@ You can limit the amount of logged information via `verboseLevel` property.
 
 ## HTTP Traffic
 
-The built-in HTTP logger is disabled by default. To enable it when troubleshooting, set:
+HTTP traffic logging is enabled by default. Logcat defaults to `WARNING`, so request and response metadata appears there only at `INFO` or `DEBUG`. To disable HTTP traffic logging for both Logcat and listeners, set:
 
 ```kotlin
-WPNLogger.logHttpTraffic = true
-WPNLogger.verboseLevel = WPNLogger.VerboseLevel.INFO
+WPNLogger.logHttpTraffic = false
 ```
 
 The logger records the method, origin (scheme, host, and port), response status, and filtered headers at `INFO`. Network I/O failures are logged at `ERROR` with the exception class, not its message. It does not log full URLs or request and response bodies, including decrypted E2EE responses, even at `DEBUG`.
@@ -35,7 +34,7 @@ The values of `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, an
 
 Set `WPNLogger.logListener` to route messages to your own logging system. A listener with `followVerboseLevel = true` receives only messages allowed by `WPNLogger.verboseLevel`. To disable Logcat while keeping your own logging active, set `WPNLogger.verboseLevel` to `OFF` and implement the listener with `followVerboseLevel = false`. The listener can then apply its own filtering.
 
-HTTP diagnostics still require `WPNLogger.logHttpTraffic = true` and use the same redaction rules for both destinations.
+HTTP diagnostics use the same redaction rules for both destinations. Setting `WPNLogger.logHttpTraffic = false` disables them even for independent listeners.
 
 <!-- begin box info -->
 Log listener comes in handy when you want to log into a file or some online service.

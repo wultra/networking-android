@@ -22,7 +22,7 @@ interface WPNLogListener {
      * Whether this listener follows [WPNLogger.verboseLevel].
      *
      * Set to `false` to receive messages regardless of verbosity, even when Android logging is off.
-     * This does not enable HTTP traffic logging; that requires [WPNLogger.logHttpTraffic].
+     * The listener still receives no HTTP traffic logs if [WPNLogger.logHttpTraffic] is `false`.
      */
     val followVerboseLevel: Boolean
 

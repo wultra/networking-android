@@ -46,7 +46,7 @@ class WPNLoggerTest {
 
     private var originalVerboseLevel: WPNLogger.VerboseLevel = WPNLogger.VerboseLevel.WARNING
     private var originalListener: WPNLogListener? = null
-    private var originalLogHttpTraffic = false
+    private var originalLogHttpTraffic = true
     private var originalHeadersToSkip = WPNLogger.httpHeadersToSkip
 
     @Before
@@ -89,8 +89,8 @@ class WPNLoggerTest {
     }
 
     @Test
-    fun `HTTP logging requires opt-in even at DEBUG`() {
-        assertFalse(originalLogHttpTraffic)
+    fun `disabling HTTP logging also silences independent listeners`() {
+        WPNLogger.logHttpTraffic = false
         val listener = TestLogListener(followVerboseLevel = false)
         WPNLogger.logListener = listener
         WPNLogger.verboseLevel = WPNLogger.VerboseLevel.DEBUG
@@ -102,11 +102,10 @@ class WPNLoggerTest {
     }
 
     @Test
-    fun `independent listener receives only sanitized HTTP diagnostics with Logcat off`() {
+    fun `default HTTP logging sends only sanitized diagnostics to an independent listener`() {
         val listener = TestLogListener(followVerboseLevel = false)
         WPNLogger.logListener = listener
         WPNLogger.verboseLevel = WPNLogger.VerboseLevel.OFF
-        WPNLogger.logHttpTraffic = true
         WPNLogger.httpHeadersToSkip = HeaderBlockList().apply {
             add("Cookie")
             add("Authorization")

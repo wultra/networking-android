@@ -57,9 +57,9 @@ class WPNLogger {
         @Volatile
         @JvmStatic var logListener: WPNLogListener? = null
 
-        /** Whether to log HTTP metadata. Disabled by default; bodies are never logged by the HTTP interceptor. */
+        /** Whether to log HTTP metadata. Enabled by default; bodies are never logged by the HTTP interceptor. */
         @Volatile
-        @JvmStatic var logHttpTraffic = false
+        @JvmStatic var logHttpTraffic = true
 
         /**
          * Headers to skip when logging HTTP traffic.

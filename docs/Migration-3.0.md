@@ -79,9 +79,9 @@ See [Creating an HTTP request](Creating-an-HTTP-Request.md#request-concurrency-s
 
 ---
 
-### HTTP Traffic Logging Is Now Opt-In
+### HTTP Traffic Logs No Longer Include Payloads
 
-If you rely on HTTP diagnostics, set `WPNLogger.logHttpTraffic = true`. Request and response metadata is logged at `INFO`. Opting in does not restore logging of bodies, full URLs, or credential header values. See [Logging](Logging.md) for details.
+HTTP traffic logging remains enabled by default, with request and response metadata logged at `INFO`. HTTP logs no longer contain bodies, full URLs, or credential header values. See [Logging](Logging.md) for details.
 
 ---
 
@@ -91,4 +91,3 @@ If you rely on HTTP diagnostics, set `WPNLogger.logHttpTraffic = true`. Request 
 - No changes are needed at `Api.post(...)` call sites.
 - Remove the `tokenProvider` argument from the `Api` constructor call and delete any custom `IPowerAuthTokenProvider` implementation.
 - If your app relies on `EndpointAuthenticated` requests running concurrently, set `concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL` — the new default now serializes them.
-- If you need HTTP diagnostics, opt in explicitly with `WPNLogger.logHttpTraffic = true`.
