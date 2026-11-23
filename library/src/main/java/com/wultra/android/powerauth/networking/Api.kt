@@ -62,7 +62,7 @@ interface IApiCallResponseListener<T> {
  * Common API methods for making request via OkHttp and (de)serializing data via Gson.
  *
  * @param baseUrl Base url for all requests
- * @param okHttpClient Configured HTTP client. OkHttp's built-in redirects are disabled on the copy used by [Api].
+ * @param okHttpClient Configured HTTP client. [followRedirects] controls redirects on the copy used by [Api].
  * @param powerAuthSDK Power Auth instance for request authentication
  * @param gsonBuilder Builder that will be used for request/response (de)serialization.
  * @param appContext Application context. The library internally uses [Context.applicationContext]
@@ -95,17 +95,19 @@ abstract class Api(
     var concurrencyStrategy = RequestConcurrencyStrategy.SERIAL_AUTHENTICATED
 
     /**
-     * Decides whether to replay a request after a 307 or 308 redirect. Defaults to `null` (no replay).
+     * Enables OkHttp's standard redirect handling, including redirects to another host or between HTTP and HTTPS.
+     * Defaults to `false`. When `true`, use the `okHttpInterceptor` parameter of [post] to fine-tune
+     * redirect behavior for a request.
      */
     @Volatile
-    var redirectPolicy: RedirectPolicy? = null
+    var followRedirects: Boolean = false
 
     private val okHttpClient: OkHttpClient
 
     init {
         val builder = okHttpClient.newBuilder()
         WPNLogger.configure(builder)
-        this.okHttpClient = builder.buildWithoutRedirects()
+        this.okHttpClient = builder.followRedirects(false).followSslRedirects(false).build()
     }
 
     // PUBLIC API
@@ -284,16 +286,17 @@ abstract class Api(
         headers.forEach { requestBuilder.header(it.key, it.value) }
 
         val request = requestBuilder.build()
-        val policy = redirectPolicy
-        val client = if (okHttpInterceptor != null || policy != null) {
+        val allowRedirects = followRedirects
+        val client = if (okHttpInterceptor != null || allowRedirects) {
             val builder = okHttpClient.newBuilder()
-            okHttpInterceptor?.intercept(builder)
-            if (policy != null) {
-                val isProtectedRequest = endpoint !is EndpointBasic ||
-                    endpoint.e2eeConfiguration != E2EEConfiguration.NOT_ENCRYPTED
-                builder.addInterceptor(RedirectInterceptor(policy, isProtectedRequest))
+            if (allowRedirects) {
+                builder.followRedirects(true).followSslRedirects(true)
             }
-            builder.buildWithoutRedirects()
+            okHttpInterceptor?.intercept(builder)
+            if (!allowRedirects) {
+                builder.followRedirects(false).followSslRedirects(false)
+            }
+            builder.build()
         } else {
             okHttpClient
         }
@@ -530,12 +533,9 @@ internal fun <T> dispatchingListener(executor: Executor, listener: IApiCallRespo
     }
 }
 
-private fun OkHttpClient.Builder.buildWithoutRedirects(): OkHttpClient =
-    followRedirects(false).followSslRedirects(false).build()
-
 /**
- * Configures the client for a single [Api] request. [Api] disables OkHttp's built-in redirects
- * after this hook runs.
+ * Configures the client for a single [Api] request. Redirect settings are honored only when
+ * [Api.followRedirects] is `true`.
  */
 interface OkHttpBuilderInterceptor {
     fun intercept(builder: OkHttpClient.Builder)

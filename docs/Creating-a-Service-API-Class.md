@@ -11,13 +11,11 @@ This class takes several parameters:
 - `appContext` - Application Context
 - `userAgent` - Custom user-agent that will be added as an HTTP header to each request.
 
-`Api` does not follow HTTP redirects by default. Configure `baseUrl` and the endpoint paths to point directly to the final service URL where possible.
+`Api.followRedirects` defaults to `false`. Redirects that are not followed reach `onFailure` as an `ApiError` wrapping an `ApiHttpException` with the HTTP status code. Configure `baseUrl` and endpoint paths to point directly to the final service URL where possible.
 
-To opt in, set `api.redirectPolicy` to a `RedirectPolicy` callback. It receives the source URL, resolved destination URL, and status code for a replayable 307 or 308. Return `true` to replay the POST once with its original body, or `false` to report the 3xx as an HTTP error. Only approve destinations where both sending the body and repeating the operation are safe.
+Set `api.followRedirects = true` to opt in to standard OkHttp redirect handling, including redirects to another host and between HTTP and HTTPS. OkHttp determines whether a redirect changes a POST to a GET. Custom headers, including `X-PowerAuth-*`, may be sent to a different host or over plain HTTP, so only enable redirects when you trust the destinations.
 
-The SDK does not replay HTTPS-to-HTTP redirects. PowerAuth-authenticated and encrypted requests, and requests carrying `X-PowerAuth-*`, `Authorization`, `Proxy-Authorization`, or explicit `Cookie` headers, can only be replayed within the same HTTPS origin. A cross-origin replay of a basic, unencrypted request does not copy the original request headers.
-
-Redirects that are not followed reach `onFailure` as an `ApiError` wrapping an `ApiHttpException` with the HTTP status code. OkHttp's built-in redirect settings do not override this policy, and the supplied `OkHttpClient` is not modified.
+When `followRedirects` is `true`, use the `okHttpInterceptor` parameter of `Api.post` to fine-tune redirects per request. For example, call `builder.followSslRedirects(false)` to disallow redirects between HTTP and HTTPS. When `followRedirects` is `false`, the hook cannot re-enable OkHttp's automatic redirects. The supplied `OkHttpClient` is not modified.
 
 <!-- begin box info -->
 It is expected that you inherit this class and create your own APIs based on our needs.

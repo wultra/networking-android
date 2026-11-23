@@ -105,7 +105,7 @@ class PostMockWebServerTest {
 
     @Test
     fun basicPostReportsRedirectWithoutFollowingIt() {
-        assertRedirectNotFollowed(302)
+        assertRedirect(302)
     }
 
     @Test
@@ -115,25 +115,36 @@ class PostMockWebServerTest {
                 builder.followRedirects(true).followSslRedirects(true)
             }
         }
-        assertRedirectNotFollowed(307, interceptor)
+        assertRedirect(302, interceptor)
     }
 
     @Test
-    fun policyCanDeclineReplay() {
-        var proposedPath: String? = null
-        api.redirectPolicy = RedirectPolicy { _, destination, _ ->
-            proposedPath = destination.encodedPath
-            false
-        }
-        assertRedirectNotFollowed(307)
-        assertEquals("/final", proposedPath)
+    fun optInFollowsRedirects() {
+        api.followRedirects = true
+        assertRedirect(302, expectedFollowUpMethod = "GET")
     }
 
-    private fun assertRedirectNotFollowed(statusCode: Int, interceptor: OkHttpBuilderInterceptor? = null) {
+    @Test
+    fun perRequestBuilderCanDisableOptedInRedirects() {
+        api.followRedirects = true
+        val interceptor = object : OkHttpBuilderInterceptor {
+            override fun intercept(builder: OkHttpClient.Builder) {
+                builder.followRedirects(false)
+            }
+        }
+        assertRedirect(302, interceptor)
+    }
+
+    private fun assertRedirect(
+        statusCode: Int,
+        interceptor: OkHttpBuilderInterceptor? = null,
+        expectedFollowUpMethod: String? = null
+    ) {
         server.enqueue(MockResponse().setResponseCode(statusCode).setHeader("Location", "/final"))
         server.enqueue(MockResponse().setBody("""{"status":"OK"}"""))
 
         val latch = CountDownLatch(1)
+        var receivedResponse: StatusResponse? = null
         var receivedError: ApiError? = null
         api.post(
             data = BaseRequest(),
@@ -141,6 +152,7 @@ class PostMockWebServerTest {
             okHttpInterceptor = interceptor,
             listener = object : IApiCallResponseListener<StatusResponse> {
                 override fun onSuccess(result: StatusResponse) {
+                    receivedResponse = result
                     latch.countDown()
                 }
 
@@ -152,9 +164,20 @@ class PostMockWebServerTest {
         )
 
         assertTrue("Request should complete within 10s", latch.await(10, TimeUnit.SECONDS))
-        assertEquals(statusCode, (receivedError?.e as? ApiHttpException)?.code)
-        assertEquals(1, server.requestCount)
-        assertEquals("/api/test", server.takeRequest(1, TimeUnit.SECONDS)?.path)
+        val original = server.takeRequest(1, TimeUnit.SECONDS)
+        assertEquals("/api/test", original?.path)
+        assertEquals("POST", original?.method)
+        if (expectedFollowUpMethod == null) {
+            assertEquals(statusCode, (receivedError?.e as? ApiHttpException)?.code)
+            assertEquals(1, server.requestCount)
+        } else {
+            assertNull(receivedError)
+            assertNotNull(receivedResponse)
+            assertEquals(2, server.requestCount)
+            val followUp = server.takeRequest(1, TimeUnit.SECONDS)
+            assertEquals("/final", followUp?.path)
+            assertEquals(expectedFollowUpMethod, followUp?.method)
+        }
     }
 
     // --- Success tests ---
