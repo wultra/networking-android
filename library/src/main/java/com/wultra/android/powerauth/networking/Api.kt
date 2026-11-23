@@ -62,7 +62,7 @@ interface IApiCallResponseListener<T> {
  * Common API methods for making request via OkHttp and (de)serializing data via Gson.
  *
  * @param baseUrl Base url for all requests
- * @param okHttpClient Configured HTTP client. Automatic redirects are disabled on the copy used by [Api].
+ * @param okHttpClient Configured HTTP client. OkHttp's built-in redirects are disabled on the copy used by [Api].
  * @param powerAuthSDK Power Auth instance for request authentication
  * @param gsonBuilder Builder that will be used for request/response (de)serialization.
  * @param appContext Application context. The library internally uses [Context.applicationContext]
@@ -93,6 +93,14 @@ abstract class Api(
      */
     @Volatile
     var concurrencyStrategy = RequestConcurrencyStrategy.SERIAL_AUTHENTICATED
+
+    /**
+     * Whether to follow one same-origin HTTPS 307 or 308 for a basic, unencrypted request.
+     * Defaults to `false`. Requests carrying PowerAuth headers, Authorization or an explicit Cookie
+     * header are never redirected.
+     */
+    @Volatile
+    var followSameOriginHttpsRedirects = false
 
     private val okHttpClient: OkHttpClient
 
@@ -278,9 +286,14 @@ abstract class Api(
         headers.forEach { requestBuilder.header(it.key, it.value) }
 
         val request = requestBuilder.build()
-        val client = if (okHttpInterceptor != null) {
+        val allowRedirect = followSameOriginHttpsRedirects && request.url.isHttps &&
+            endpoint is EndpointBasic && endpoint.e2eeConfiguration == E2EEConfiguration.NOT_ENCRYPTED
+        val client = if (okHttpInterceptor != null || allowRedirect) {
             val builder = okHttpClient.newBuilder()
-            okHttpInterceptor.intercept(builder)
+            okHttpInterceptor?.intercept(builder)
+            if (allowRedirect) {
+                builder.addInterceptor(SameOriginHttpsRedirectInterceptor)
+            }
             builder.buildWithoutRedirects()
         } else {
             okHttpClient
@@ -522,7 +535,7 @@ private fun OkHttpClient.Builder.buildWithoutRedirects(): OkHttpClient =
     followRedirects(false).followSslRedirects(false).build()
 
 /**
- * Configures the client for a single [Api] request. [Api] disables automatic redirects
+ * Configures the client for a single [Api] request. [Api] disables OkHttp's built-in redirects
  * after this hook runs.
  */
 interface OkHttpBuilderInterceptor {

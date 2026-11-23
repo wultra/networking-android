@@ -118,6 +118,12 @@ class PostMockWebServerTest {
         assertRedirectNotFollowed(307, interceptor)
     }
 
+    @Test
+    fun optingInDoesNotRedirectCleartextRequests() {
+        api.followSameOriginHttpsRedirects = true
+        assertRedirectNotFollowed(307)
+    }
+
     private fun assertRedirectNotFollowed(statusCode: Int, interceptor: OkHttpBuilderInterceptor? = null) {
         server.enqueue(MockResponse().setResponseCode(statusCode).setHeader("Location", "/final"))
         server.enqueue(MockResponse().setBody("""{"status":"OK"}"""))
