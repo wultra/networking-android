@@ -119,9 +119,14 @@ class PostMockWebServerTest {
     }
 
     @Test
-    fun optingInDoesNotRedirectCleartextRequests() {
-        api.followSameOriginHttpsRedirects = true
+    fun policyCanDeclineReplay() {
+        var proposedPath: String? = null
+        api.redirectPolicy = RedirectPolicy { _, destination, _ ->
+            proposedPath = destination.encodedPath
+            false
+        }
         assertRedirectNotFollowed(307)
+        assertEquals("/final", proposedPath)
     }
 
     private fun assertRedirectNotFollowed(statusCode: Int, interceptor: OkHttpBuilderInterceptor? = null) {

@@ -95,12 +95,10 @@ abstract class Api(
     var concurrencyStrategy = RequestConcurrencyStrategy.SERIAL_AUTHENTICATED
 
     /**
-     * Whether to follow one same-origin HTTPS 307 or 308 for a basic, unencrypted request.
-     * Defaults to `false`. Requests carrying PowerAuth headers, Authorization or an explicit Cookie
-     * header are never redirected.
+     * Decides whether to replay a request after a 307 or 308 redirect. Defaults to `null` (no replay).
      */
     @Volatile
-    var followSameOriginHttpsRedirects = false
+    var redirectPolicy: RedirectPolicy? = null
 
     private val okHttpClient: OkHttpClient
 
@@ -286,13 +284,14 @@ abstract class Api(
         headers.forEach { requestBuilder.header(it.key, it.value) }
 
         val request = requestBuilder.build()
-        val allowRedirect = followSameOriginHttpsRedirects && request.url.isHttps &&
-            endpoint is EndpointBasic && endpoint.e2eeConfiguration == E2EEConfiguration.NOT_ENCRYPTED
-        val client = if (okHttpInterceptor != null || allowRedirect) {
+        val policy = redirectPolicy
+        val client = if (okHttpInterceptor != null || policy != null) {
             val builder = okHttpClient.newBuilder()
             okHttpInterceptor?.intercept(builder)
-            if (allowRedirect) {
-                builder.addInterceptor(SameOriginHttpsRedirectInterceptor)
+            if (policy != null) {
+                val isProtectedRequest = endpoint !is EndpointBasic ||
+                    endpoint.e2eeConfiguration != E2EEConfiguration.NOT_ENCRYPTED
+                builder.addInterceptor(RedirectInterceptor(policy, isProtectedRequest))
             }
             builder.buildWithoutRedirects()
         } else {

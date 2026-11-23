@@ -13,7 +13,9 @@ This class takes several parameters:
 
 `Api` does not follow HTTP redirects by default. Configure `baseUrl` and the endpoint paths to point directly to the final service URL where possible.
 
-If a basic, unencrypted endpoint requires redirects, set `api.followSameOriginHttpsRedirects = true`. This allows one HTTP 307 or 308 redirect to the same HTTPS host and port, preserving the POST method and body. Enable it only for services where repeating that POST at the redirect destination is safe. PowerAuth-authenticated and encrypted requests are never redirected, and neither are requests with `X-PowerAuth-*`, `Authorization`, or explicit `Cookie` headers.
+To opt in, set `api.redirectPolicy` to a `RedirectPolicy` callback. It receives the source URL, resolved destination URL, and status code for a replayable 307 or 308. Return `true` to replay the POST once with its original body, or `false` to report the 3xx as an HTTP error. Only approve destinations where both sending the body and repeating the operation are safe.
+
+The SDK does not replay HTTPS-to-HTTP redirects. PowerAuth-authenticated and encrypted requests, and requests carrying `X-PowerAuth-*`, `Authorization`, `Proxy-Authorization`, or explicit `Cookie` headers, can only be replayed within the same HTTPS origin. A cross-origin replay of a basic, unencrypted request does not copy the original request headers.
 
 Redirects that are not followed reach `onFailure` as an `ApiError` wrapping an `ApiHttpException` with the HTTP status code. OkHttp's built-in redirect settings do not override this policy, and the supplied `OkHttpClient` is not modified.
 

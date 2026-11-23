@@ -23,10 +23,11 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
 
-class SameOriginHttpsRedirectInterceptorTest {
+class RedirectInterceptorTest {
     @Test
     fun followsOneSameOriginRedirectWithoutRewritingPost() {
         val request = post()
@@ -39,10 +40,24 @@ class SameOriginHttpsRedirectInterceptorTest {
     }
 
     @Test
-    fun rejectsOriginChangesAndMethodChangingRedirects() {
+    fun followsApprovedCrossOriginRedirectWithoutOriginalHeaders() {
+        val request = post().newBuilder().header("X-Example", "original").build()
+        val policy = RedirectPolicy { source, destination, status ->
+            assertEquals(request.url, source)
+            assertEquals("other.invalid", destination.host)
+            assertEquals(307, status)
+            true
+        }
+        val (_, attempts) = exchange(request, 307, "https://other.invalid/second", policy = policy)
+
+        assertEquals(2, attempts.size)
+        assertSame(request.body, attempts.last().body)
+        assertNull(attempts.last().header("X-Example"))
+    }
+
+    @Test
+    fun rejectsDowngradesAndMethodChangingRedirects() {
         val cases = listOf(
-            307 to "https://other.invalid/second",
-            307 to "https://service.invalid:8443/second",
             307 to "http://service.invalid/second",
             302 to "/second"
         )
@@ -55,13 +70,17 @@ class SameOriginHttpsRedirectInterceptorTest {
     }
 
     @Test
-    fun doesNotRedirectRequestsWithExplicitCredentialHeaders() {
+    fun doesNotReplayProtectedRequestsAcrossOrigins() {
+        val destination = "https://service.invalid:8443/second"
+        val request = post()
+        assertEquals(listOf(request), exchange(request, 307, destination, protectedRequest = true).second)
+
         for (header in listOf("x-powerauth-token", "Authorization", "Cookie")) {
-            val request = post().newBuilder().header(header, "dummy").build()
-            val (status, attempts) = exchange(request, 307, "/second")
+            val credentialedRequest = post().newBuilder().header(header, "dummy").build()
+            val (status, attempts) = exchange(credentialedRequest, 307, destination)
 
             assertEquals(307, status)
-            assertEquals(listOf(request), attempts)
+            assertEquals(listOf(credentialedRequest), attempts)
         }
     }
 
@@ -70,11 +89,17 @@ class SameOriginHttpsRedirectInterceptorTest {
         .post("{}".toRequestBody())
         .build()
 
-    private fun exchange(request: Request, status: Int, location: String): Pair<Int, List<Request>> {
+    private fun exchange(
+        request: Request,
+        status: Int,
+        location: String,
+        policy: RedirectPolicy = RedirectPolicy { _, _, _ -> true },
+        protectedRequest: Boolean = false
+    ): Pair<Int, List<Request>> {
         val attempts = mutableListOf<Request>()
         val client = OkHttpClient.Builder()
             .followRedirects(false)
-            .addInterceptor(SameOriginHttpsRedirectInterceptor)
+            .addInterceptor(RedirectInterceptor(policy, protectedRequest))
             .addInterceptor { chain ->
                 val attempted = chain.request()
                 attempts.add(attempted)
