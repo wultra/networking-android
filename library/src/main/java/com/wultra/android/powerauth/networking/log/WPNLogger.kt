@@ -201,7 +201,16 @@ private fun HttpUrl.originForLog(): String {
     return "$scheme://$originHost:$port"
 }
 
-private val sensitiveHeaders = setOf("authorization", "proxy-authorization", "cookie", "set-cookie")
+private val sensitiveHeaders = setOf(
+    "authorization",
+    "proxy-authorization",
+    "cookie",
+    "set-cookie",
+    "referer",
+    "location",
+    "content-location",
+    "link"
+)
 
 private fun Headers.forLog(skip: List<String>): String {
     val result = StringBuilder()
