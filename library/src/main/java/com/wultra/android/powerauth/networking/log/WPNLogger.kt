@@ -119,7 +119,7 @@ class WPNLogger {
         }
 
         internal fun configure(builder: OkHttpClient.Builder) {
-            builder.addInterceptor(Interceptor { chain ->
+            val interceptor = Interceptor { chain ->
                 val request = chain.request()
                 if (!logHttpTraffic) return@Interceptor chain.proceed(request)
 
@@ -148,7 +148,8 @@ class WPNLogger {
                         "\n- Headers: ${response.headers.forLog(httpHeadersToSkip.toList())}"
                 }
                 response
-            })
+            }
+            builder.addInterceptor(interceptor)
         }
     }
 }
