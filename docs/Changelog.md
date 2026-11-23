@@ -8,6 +8,7 @@
     - [Migration guide](Migration-3.0.md)
 - Token-authenticated requests now use `PowerAuthSDK.tokenStore` directly. The `tokenProvider` constructor parameter and the `IPowerAuthTokenProvider`/`IPowerAuthTokenListener` interfaces have been removed. [(#97)](https://github.com/wultra/networking-android/pull/97)
 - Reintroduced time synchronization before ECIES-encrypted requests (`E2EEConfiguration.APPLICATION_SCOPE` and `ACTIVATION_SCOPE`). Requests without E2EE no longer trigger it. [(#101)](https://github.com/wultra/networking-android/issues/101)
+- Disabled automatic HTTP redirects for `Api` requests to prevent replaying PowerAuth requests. Redirect responses are reported as HTTP errors; configure the final service URL and endpoint paths directly. [(#107)](https://github.com/wultra/networking-android/issues/107)
 
 ## 2.0.0
 

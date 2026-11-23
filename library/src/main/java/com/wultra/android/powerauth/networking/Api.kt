@@ -62,7 +62,7 @@ interface IApiCallResponseListener<T> {
  * Common API methods for making request via OkHttp and (de)serializing data via Gson.
  *
  * @param baseUrl Base url for all requests
- * @param okHttpClient Configured Http Client
+ * @param okHttpClient Configured HTTP client. Automatic redirects are disabled on the copy used by [Api].
  * @param powerAuthSDK Power Auth instance for request authentication
  * @param gsonBuilder Builder that will be used for request/response (de)serialization.
  * @param appContext Application context. The library internally uses [Context.applicationContext]
@@ -99,7 +99,7 @@ abstract class Api(
     init {
         val builder = okHttpClient.newBuilder()
         WPNLogger.configure(builder)
-        this.okHttpClient = builder.build()
+        this.okHttpClient = builder.buildWithoutRedirects()
     }
 
     // PUBLIC API
@@ -281,7 +281,7 @@ abstract class Api(
         val client = if (okHttpInterceptor != null) {
             val builder = okHttpClient.newBuilder()
             okHttpInterceptor.intercept(builder)
-            builder.build()
+            builder.buildWithoutRedirects()
         } else {
             okHttpClient
         }
@@ -518,6 +518,13 @@ internal fun <T> dispatchingListener(executor: Executor, listener: IApiCallRespo
     }
 }
 
+private fun OkHttpClient.Builder.buildWithoutRedirects(): OkHttpClient =
+    followRedirects(false).followSslRedirects(false).build()
+
+/**
+ * Configures the client for a single [Api] request. [Api] disables automatic redirects
+ * after this hook runs.
+ */
 interface OkHttpBuilderInterceptor {
     fun intercept(builder: OkHttpClient.Builder)
 }

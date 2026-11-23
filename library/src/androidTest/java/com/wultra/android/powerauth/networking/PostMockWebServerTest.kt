@@ -103,6 +103,48 @@ class PostMockWebServerTest {
         server.shutdown()
     }
 
+    @Test
+    fun basicPostReportsRedirectWithoutFollowingIt() {
+        assertRedirectNotFollowed(302)
+    }
+
+    @Test
+    fun perRequestBuilderCannotEnableRedirects() {
+        assertRedirectNotFollowed(307, object : OkHttpBuilderInterceptor {
+            override fun intercept(builder: OkHttpClient.Builder) {
+                builder.followRedirects(true).followSslRedirects(true)
+            }
+        })
+    }
+
+    private fun assertRedirectNotFollowed(statusCode: Int, interceptor: OkHttpBuilderInterceptor? = null) {
+        server.enqueue(MockResponse().setResponseCode(statusCode).setHeader("Location", "/final"))
+        server.enqueue(MockResponse().setBody("""{"status":"OK"}"""))
+
+        val latch = CountDownLatch(1)
+        var receivedError: ApiError? = null
+        api.post(
+            data = BaseRequest(),
+            endpoint = EndpointBasic("/api/test", BaseRequest::class.java, StatusResponse::class.java),
+            okHttpInterceptor = interceptor,
+            listener = object : IApiCallResponseListener<StatusResponse> {
+                override fun onSuccess(result: StatusResponse) {
+                    latch.countDown()
+                }
+
+                override fun onFailure(error: ApiError) {
+                    receivedError = error
+                    latch.countDown()
+                }
+            }
+        )
+
+        assertTrue("Request should complete within 10s", latch.await(10, TimeUnit.SECONDS))
+        assertEquals(statusCode, (receivedError?.e as? ApiHttpException)?.code)
+        assertEquals(1, server.requestCount)
+        assertEquals("/api/test", server.takeRequest(1, TimeUnit.SECONDS)?.path)
+    }
+
     // --- Success tests ---
 
     @Test

@@ -11,6 +11,8 @@ This class takes several parameters:
 - `appContext` - Application Context
 - `userAgent` - Custom user-agent that will be added as an HTTP header to each request.
 
+`Api` does not follow HTTP redirects, even within the same origin or when redirects are enabled on the supplied client or in a per-request `OkHttpBuilderInterceptor`. This prevents automatic replay of PowerAuth requests. Redirect responses reach `onFailure` as an `ApiError` wrapping an `ApiHttpException` with the original HTTP status code. If your integration relied on redirects, configure `baseUrl` and the endpoint paths to point directly to the final service URL. The supplied `OkHttpClient` is not modified.
+
 <!-- begin box info -->
 It is expected that you inherit this class and create your own APIs based on our needs.
 <!-- end -->
