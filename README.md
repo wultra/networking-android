@@ -1,9 +1,11 @@
 # PowerAuth Networking SDK for Android
 
 <!-- begin remove -->
-<p align="center"><img src="docs/intro.jpg" alt="Wultra Digital Onboarding for Android" width="100%" /></p>
+<p align="center"><img src="docs/intro.jpg" alt="PowerAuth Networking SDK for Android" width="100%" /></p>
 
 [![build](https://github.com/wultra/networking-android/actions/workflows/build.yml/badge.svg)](https://github.com/wultra/networking-android/actions/workflows/build.yml)
+[![Unit tests](https://img.shields.io/github/check-runs/wultra/networking-android/develop?nameFilter=Unit%20tests&label=Unit%20tests)](https://github.com/wultra/networking-android/actions/workflows/tests.yml)
+[![Integration tests](https://img.shields.io/github/check-runs/wultra/networking-android/develop?nameFilter=Integration%20tests&label=Integration%20tests)](https://github.com/wultra/networking-android/actions/workflows/tests.yml)
 [![maven](https://img.shields.io/maven-central/v/com.wultra.android.powerauth/powerauth-networking)](https://mvnrepository.com/artifact/com.wultra.android.powerauth/powerauth-networking)
 ![date](https://img.shields.io/github/release-date/wultra/networking-android)
 [![license](https://img.shields.io/github/license/wultra/networking-android)](LICENSE)
