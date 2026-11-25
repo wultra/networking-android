@@ -7,7 +7,7 @@ To create an HTTP request to your endpoint, you need to call the `Api.post` meth
 - `auth` - `PowerAuthAuthentication` instance that will authenticate the request  
   - this parameter is missing for the basic and token endpoints 
 - `headers` - custom HTTP headers, `null` by default
-- `okHttpInterceptor` - OkHttp interceptor to intercept requests eg. for logging purposes, `null` by default
+- `okHttpInterceptor` - configures the OkHttp client builder for this request, for example to add a logging interceptor or fine-tune redirects when `Api.followRedirects` is `true`; `null` by default
 - `listener` - result listener
 
 

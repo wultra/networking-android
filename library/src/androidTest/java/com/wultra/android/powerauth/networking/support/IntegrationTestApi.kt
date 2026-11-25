@@ -35,18 +35,21 @@ import okhttp3.OkHttpClient
  * @param powerAuthSDK  Initialized PowerAuth SDK used for request signing.
  * @param appContext    Android application context.
  * @param userAgent     User-Agent value sent with every request; defaults to the system value.
+ * @param followRedirects Whether to follow HTTP redirects.
  */
 class IntegrationTestApi(
     baseUrl: String,
     okHttpClient: OkHttpClient,
     powerAuthSDK: PowerAuthSDK,
     appContext: Context,
-    userAgent: UserAgent = UserAgent.systemDefault()
+    userAgent: UserAgent = UserAgent.systemDefault(),
+    followRedirects: Boolean = false
 ) : Api(
     baseUrl = baseUrl,
     okHttpClient = okHttpClient,
     powerAuthSDK = powerAuthSDK,
     gsonBuilder = GsonBuilder(),
     appContext = appContext,
-    userAgent = userAgent
+    userAgent = userAgent,
+    followRedirects = followRedirects
 )

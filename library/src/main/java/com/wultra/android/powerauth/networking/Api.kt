@@ -62,13 +62,16 @@ interface IApiCallResponseListener<T> {
  * Common API methods for making request via OkHttp and (de)serializing data via Gson.
  *
  * @param baseUrl Base url for all requests
- * @param okHttpClient Configured Http Client
+ * @param okHttpClient Configured HTTP client. [followRedirects] controls redirects on the copy used by [Api].
  * @param powerAuthSDK Power Auth instance for request authentication
  * @param gsonBuilder Builder that will be used for request/response (de)serialization.
  * @param appContext Application context. The library internally uses [Context.applicationContext]
  * to avoid holding a reference to an Activity or other short-lived context.
  * @param userAgent Default user agent for each request. Note that such value might be "overridden"
  * on per-request basis. Default value is `libraryDefault`.
+ * @param followRedirects Enables OkHttp's standard redirect handling, including redirects to another host or between
+ * HTTP and HTTPS. Defaults to `false`. When `true`, use the `okHttpInterceptor` parameter of [post] to fine-tune
+ * redirect behavior for a request.
  */
 abstract class Api(
     private val baseUrl: String,
@@ -76,7 +79,8 @@ abstract class Api(
     private val powerAuthSDK: PowerAuthSDK,
     private val gsonBuilder: GsonBuilder,
     appContext: Context,
-    private val userAgent: UserAgent = UserAgent.libraryDefault(appContext)
+    private val userAgent: UserAgent = UserAgent.libraryDefault(appContext),
+    val followRedirects: Boolean = false
 ) {
 
     private val appContext: Context = appContext.applicationContext
@@ -99,7 +103,7 @@ abstract class Api(
     init {
         val builder = okHttpClient.newBuilder()
         WPNLogger.configure(builder)
-        this.okHttpClient = builder.build()
+        this.okHttpClient = builder.followRedirects(followRedirects).followSslRedirects(followRedirects).build()
     }
 
     // PUBLIC API
@@ -281,6 +285,9 @@ abstract class Api(
         val client = if (okHttpInterceptor != null) {
             val builder = okHttpClient.newBuilder()
             okHttpInterceptor.intercept(builder)
+            if (!followRedirects) {
+                builder.followRedirects(false).followSslRedirects(false)
+            }
             builder.build()
         } else {
             okHttpClient
@@ -518,6 +525,10 @@ internal fun <T> dispatchingListener(executor: Executor, listener: IApiCallRespo
     }
 }
 
+/**
+ * Configures the client for a single [Api] request. Redirect settings are honored only when
+ * [Api.followRedirects] is `true`.
+ */
 interface OkHttpBuilderInterceptor {
     fun intercept(builder: OkHttpClient.Builder)
 }

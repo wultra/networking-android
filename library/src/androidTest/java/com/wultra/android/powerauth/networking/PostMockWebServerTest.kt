@@ -77,7 +77,7 @@ class ThrowingBodyRequest : BaseRequest() {
 class PostMockWebServerTest {
 
     private lateinit var server: MockWebServer
-    private lateinit var api: IntegrationTestApi
+    private val api by lazy { createApi() }
 
     @Before
     fun setUp() {
@@ -85,22 +85,101 @@ class PostMockWebServerTest {
         server.start()
 
         WPNLogger.verboseLevel = WPNLogger.VerboseLevel.DEBUG
+    }
 
+    private fun createApi(followRedirects: Boolean = false): IntegrationTestApi {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val powerAuth = createDummyPowerAuth(context, server.url("/").toString())
 
-        api = IntegrationTestApi(
+        return IntegrationTestApi(
             baseUrl = server.url("/").toString(),
             okHttpClient = OkHttpClient(),
             powerAuthSDK = powerAuth,
             appContext = context,
-            userAgent = UserAgent.customValue("TestAgent/1.0")
+            userAgent = UserAgent.customValue("TestAgent/1.0"),
+            followRedirects = followRedirects
         )
     }
 
     @After
     fun tearDown() {
         server.shutdown()
+    }
+
+    @Test
+    fun basicPostReportsRedirectWithoutFollowingIt() {
+        assertRedirect(302)
+    }
+
+    @Test
+    fun perRequestBuilderCannotEnableRedirects() {
+        val interceptor = object : OkHttpBuilderInterceptor {
+            override fun intercept(builder: OkHttpClient.Builder) {
+                builder.followRedirects(true).followSslRedirects(true)
+            }
+        }
+        assertRedirect(302, interceptor)
+    }
+
+    @Test
+    fun optInFollowsRedirects() {
+        assertRedirect(302, expectedFollowUpMethod = "GET", api = createApi(followRedirects = true))
+    }
+
+    @Test
+    fun perRequestBuilderCanDisableOptedInRedirects() {
+        val interceptor = object : OkHttpBuilderInterceptor {
+            override fun intercept(builder: OkHttpClient.Builder) {
+                builder.followRedirects(false)
+            }
+        }
+        assertRedirect(302, interceptor, api = createApi(followRedirects = true))
+    }
+
+    private fun assertRedirect(
+        statusCode: Int,
+        interceptor: OkHttpBuilderInterceptor? = null,
+        expectedFollowUpMethod: String? = null,
+        api: IntegrationTestApi = this.api
+    ) {
+        server.enqueue(MockResponse().setResponseCode(statusCode).setHeader("Location", "/final"))
+        server.enqueue(MockResponse().setBody("""{"status":"OK"}"""))
+
+        val latch = CountDownLatch(1)
+        var receivedResponse: StatusResponse? = null
+        var receivedError: ApiError? = null
+        api.post(
+            data = BaseRequest(),
+            endpoint = EndpointBasic("/api/test", BaseRequest::class.java, StatusResponse::class.java),
+            okHttpInterceptor = interceptor,
+            listener = object : IApiCallResponseListener<StatusResponse> {
+                override fun onSuccess(result: StatusResponse) {
+                    receivedResponse = result
+                    latch.countDown()
+                }
+
+                override fun onFailure(error: ApiError) {
+                    receivedError = error
+                    latch.countDown()
+                }
+            }
+        )
+
+        assertTrue("Request should complete within 10s", latch.await(10, TimeUnit.SECONDS))
+        val original = server.takeRequest(1, TimeUnit.SECONDS)
+        assertEquals("/api/test", original?.path)
+        assertEquals("POST", original?.method)
+        if (expectedFollowUpMethod == null) {
+            assertEquals(statusCode, (receivedError?.e as? ApiHttpException)?.code)
+            assertEquals(1, server.requestCount)
+        } else {
+            assertNull(receivedError)
+            assertNotNull(receivedResponse)
+            assertEquals(2, server.requestCount)
+            val followUp = server.takeRequest(1, TimeUnit.SECONDS)
+            assertEquals("/final", followUp?.path)
+            assertEquals(expectedFollowUpMethod, followUp?.method)
+        }
     }
 
     // --- Success tests ---
