@@ -1,6 +1,11 @@
 # Changelog
 
 ## TBA
+
+-
+
+## 3.0.0
+
 - Upgraded PowerAuth SDK to `2.1.x` (`2.1.+`, accepts patch releases). [(#104)](https://github.com/wultra/networking-android/issues/104)
 - Added `Api.concurrencyStrategy` (of type `RequestConcurrencyStrategy`) to control how requests authenticated with a PowerAuth authentication code (`EndpointAuthenticated`) are dispatched. Its default value, `SERIAL_AUTHENTICATED`, serializes these requests via `PowerAuthSDK.getSerialExecutor()` so the underlying signature counter always reaches the server in the order it was assigned. **This changes the default runtime behavior** for existing apps: `EndpointAuthenticated` requests that used to run fully concurrently now run one at a time. To restore the previous behavior, set `concurrencyStrategy = RequestConcurrencyStrategy.CONCURRENT_ALL`. `EndpointBasic` and `EndpointAuthenticatedWithToken` requests are unaffected and always dispatched concurrently. [(#49)](https://github.com/wultra/networking-android/issues/49)
     - [Migration guide](Migration-3.0.md)
@@ -9,6 +14,8 @@
 - Token-authenticated requests now use `PowerAuthSDK.tokenStore` directly. The `tokenProvider` constructor parameter and the `IPowerAuthTokenProvider`/`IPowerAuthTokenListener` interfaces have been removed. [(#97)](https://github.com/wultra/networking-android/pull/97)
 - Reintroduced time synchronization before ECIES-encrypted requests (`E2EEConfiguration.APPLICATION_SCOPE` and `ACTIVATION_SCOPE`). Requests without E2EE no longer trigger it. [(#101)](https://github.com/wultra/networking-android/issues/101)
 - Disabled automatic HTTP redirects by default. Pass `followRedirects = true` to the `Api` constructor to enable OkHttp's standard redirect handling, and use `okHttpInterceptor` to customize it per request. [(#107)](https://github.com/wultra/networking-android/issues/107)
+- Hardened HTTP traffic logs: they omit payloads (including decrypted E2EE responses) and full URLs, and redact credential headers. [(#106)](https://github.com/wultra/networking-android/issues/106)
+    - [Logging guide](Logging.md)
 
 ## 2.0.0
 

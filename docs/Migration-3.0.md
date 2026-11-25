@@ -79,6 +79,12 @@ See [Creating an HTTP request](Creating-an-HTTP-Request.md#request-concurrency-s
 
 ---
 
+### HTTP Traffic Logs No Longer Include Payloads
+
+HTTP traffic logging remains enabled by default, with request and response metadata logged at `INFO`. HTTP logs no longer contain bodies, full URLs, or credential header values. See [Logging](Logging.md) for details.
+
+---
+
 ### Migration Checklist
 
 - Add `Class<TRequestData>` and `Class<TResponseData>` arguments (e.g. `MyRequest::class.java`, `MyResponse::class.java`) to every `EndpointBasic`, `EndpointAuthenticated`, and `EndpointAuthenticatedWithToken` declaration in your project.
