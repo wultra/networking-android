@@ -1,9 +1,5 @@
 # Changelog
 
-## TBA
-
--
-
 ## 3.0.0
 
 - Upgraded PowerAuth SDK to `2.1.x` (`2.1.+`, accepts patch releases). [(#104)](https://github.com/wultra/networking-android/issues/104)

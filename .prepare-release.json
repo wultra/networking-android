@@ -18,14 +18,14 @@
         },
         {
             "description": "Changelog for the Wultra documentation.",
-            "path": "README.md",
+            "path": "docs/Changelog.md",
             "type": "tba_replace",
-            "match": "### TBA",
+            "match": "## TBA",
             "devChangelog": true
         },
         {
             "description": "Verify that the changelog does not contain a TBA placeholder.",
-            "path": "README.md",
+            "path": "docs/Changelog.md",
             "type": "verify_not_containing",
             "match": "- TBA"
         }
